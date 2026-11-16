@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# tests/harness/run-all.sh: control-flow tests for install.sh, migrate-legacy.sh and
-# upgrade.sh against mocked podman / systemctl / curl / ss / loginctl / systemd-run.
+# tests/harness/run-all.sh: control-flow tests for install.sh, upgrade.sh and uninstall.sh
+# against mocked podman / systemctl / curl / ss / loginctl / systemd-run.
 # Needs bash, git, python3, the podman 4.9.3 Quadlet generator and systemd-analyze
 # (apt install podman); creates no containers and touches nothing outside a temp dir.
 #
@@ -52,46 +52,41 @@ expect() {
   fi
 }
 
-# the legacy -> Quadlet swap: commits
-expect migrate happy direct 'phase=committed'
-expect migrate happy swap 'phase=committed'
-expect migrate openclaw direct 'phase=committed' 'auth_active=1' 'new_active=1'
-# the legacy rollback model (STANDARD 7a). openclaw has podman-restart.service enabled, but
-# cf-tunnel-webgui is unless-stopped there, which that unit's filter never matches: the swap
-# must leave the container alone, exactly as it did before this shape existed.
-expect migrate openclaw direct 'rollback shape: rename' 'legacy_container=present .*capture=0' 'phase=committed'
-# the same host with the policy at `always`: leaving a stopped container there would put a
-# second cloudflared on this tunnel and these host ports at the next boot, so the swap
-# captures it in preflight and removes it.
-expect migrate openclaw_always direct 'rollback shape: capture' 'phase=committed' \
-  'legacy_container=removed .*capture=1' 'removed the legacy container cf-tunnel-webgui'
-# ... and the rollback recreates it, with the restart policy podman cannot change afterwards,
-# before it starts the legacy unit again
-expect migrate openclaw_always postcommit_rollback 'ROLLED_BACK \(manual rollback' \
-  'recreated cf-tunnel-webgui' 'legacy_container=present legacy_policy=always' \
-  'legacy_active=1 legacy_enabled=1'
-# automatic rollbacks
-expect migrate never_ready direct 'ROLLED_BACK \(gate timeout.*readyConnections=0' \
-  'legacy_active=1 legacy_enabled=1 new_active=0 auth_active=0 quadlet_files=\[\] legacy_unit_file=kept'
-expect migrate version_changed direct 'ROLLED_BACK \(gate timeout.*config version 29 != baseline 28'
-expect migrate public_mismatch direct 'ROLLED_BACK \(gate timeout.*public hostnames differ'
-expect migrate unhealthy direct 'ROLLED_BACK \(gate timeout.*podman health'
-expect migrate happy sigterm 'ROLLED_BACK \(watchdog exited unexpectedly'
-expect migrate happy soak_restart 'ROLLED_BACK \(woow-cf-tunnel.service restarted during soak'
-SOAKS=10 expect migrate happy soak_lost 'ROLLED_BACK \(tunnel not ready for 3'
-expect migrate never_ready abort 'ROLLED_BACK \(operator abort'
-expect migrate happy postcommit_rollback 'ROLLED_BACK \(manual rollback'
-# refusals that change nothing
-expect migrate legacy_unhealthy direct 'ABORTED_BEFORE_CHANGE'
-expect migrate broken_config direct 'preflight refused' 'cannot read the ingress config version'
-# the access-path guard, both loopback: only the carrier process tells the paths apart
-expect migrate tunnel_session direct 'preflight refused' 'arrives through the cloudflared tunnel'
-expect migrate tailnet_session direct 'phase=committed'
-
-# upgrade of an installed woow-cf-tunnel
+# upgrade of an installed apporo-cf-tunnel: commits
 expect upgrade happy direct 'phase=committed' 'images: running=new installed=new'
 expect upgrade happy swap 'phase=committed'
+# automatic rollbacks, back to the units that were installed before (the gate and the soak
+# in scripts/lib/cf-gate.sh)
 expect upgrade bad_image direct 'ROLLED_BACK \(gate timeout' 'images: running=old installed=old' 'new_active=1'
+expect upgrade never_ready direct 'ROLLED_BACK \(gate timeout.*readyConnections=0' 'images: running=old installed=old'
+expect upgrade version_changed direct 'ROLLED_BACK \(gate timeout.*config version 29 != baseline 28'
+expect upgrade public_mismatch direct 'ROLLED_BACK \(gate timeout.*public hostnames differ'
+expect upgrade unhealthy direct 'ROLLED_BACK \(gate timeout.*podman health'
+expect upgrade happy sigterm 'ROLLED_BACK \(watchdog exited unexpectedly'
+expect upgrade happy soak_restart 'ROLLED_BACK \(apporo-cf-tunnel.service restarted during soak'
+SOAKS=10 expect upgrade happy soak_lost 'ROLLED_BACK \(tunnel not ready for 3'
+expect upgrade never_ready abort 'ROLLED_BACK \(operator abort'
+expect upgrade happy postcommit_rollback 'ROLLED_BACK \(manual rollback' 'images: running=old installed=old'
+# refusals that change nothing
 expect upgrade noop direct 'no upgrade run started' 'already up to date'
+expect upgrade broken_config direct 'no upgrade run started' 'baseline is not usable'
+# the upgrade also moves the GUI and the metrics port: the baseline reads the running tunnel
+# on the ports it was installed with (and so finds its edge connections), the gate reads the
+# new ports, and a rollback checks the old ports again
+expect upgrade ports direct 'phase=committed' 'baseline: ready_conns=4' 'ports: gui=18101 metrics=127.0.0.1:20342'
+expect upgrade ports_never_ready direct 'ROLLED_BACK \(gate timeout.*readyConnections=0' \
+  'images: running=old installed=old' 'ports: gui=18100 metrics=127.0.0.1:20341'
+# WOOW's GUI running on the same host: committing, rolling back automatically and rolling
+# back by hand all leave it exactly as it was
+expect upgrade coexist direct 'phase=committed' 'images: running=new installed=new' 'woow=untouched'
+expect upgrade coexist swap 'phase=committed' 'woow=untouched'
+expect upgrade coexist_never_ready direct 'ROLLED_BACK \(gate timeout' 'images: running=old installed=old' 'woow=untouched'
+expect upgrade coexist postcommit_rollback 'ROLLED_BACK \(manual rollback' 'woow=untouched'
+# ... and from a shell that carries WOOW's unit, container and ports: the run still prepares,
+# restarts, gates, soaks and rolls back this app's units only
+expect upgrade coexist_env direct 'phase=committed' 'images: running=new installed=new' 'woow=untouched'
+expect upgrade coexist_env swap 'phase=committed' 'woow=untouched'
+expect upgrade coexist_env_never_ready direct 'ROLLED_BACK \(gate timeout' 'images: running=old installed=old' 'woow=untouched'
+expect upgrade coexist_env postcommit_rollback 'ROLLED_BACK \(manual rollback' 'woow=untouched'
 
 if ((fails == 0)); then echo "harness: $ran case(s) passed"; else echo "harness: $fails of $ran case(s) failed"; exit 1; fi

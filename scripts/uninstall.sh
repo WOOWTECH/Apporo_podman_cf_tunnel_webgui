@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scripts/uninstall.sh: remove the woow-cf-tunnel Quadlet units. Keeps your data by default.
+# scripts/uninstall.sh: remove the apporo-cf-tunnel Quadlet units. Keeps your data by default.
 #
 #   scripts/uninstall.sh                   stop and remove the units; keep the data volume,
 #                                          the image, the env file and the htpasswd
@@ -9,8 +9,9 @@
 #   scripts/uninstall.sh --force           allow it over an SSH session that rides the tunnel
 #
 # THIS STOPS THE TUNNEL. Every public hostname it serves goes down, including an SSH route.
-# Never deleted here: the env file, the built images, podman.socket, and the legacy
-# cf-tunnel-webgui unit (if you migrated, its file is still in ~/.config/systemd/user).
+# Never deleted here: the env file, the built images, podman.socket, and anything of WOOW's
+# Cloudflare Tunnel Web GUI on this host (woow-cf-tunnel*, cf-tunnel-webgui*, cf_data): only
+# the files this app's manifest lists go, and --purge refuses a volume that is not ours.
 # shellcheck source-path=SCRIPTDIR
 set -euo pipefail
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
@@ -18,6 +19,8 @@ HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
 . "$HERE/lib/quadlet-lib.sh"
 # shellcheck source=lib/cf-gate.sh
 . "$HERE/lib/cf-gate.sh"
+# shellcheck source=render-args.sh
+. "$HERE/render-args.sh"
 export QL_LOG_PREFIX=uninstall QL_APP=$CF_APP
 
 QUADLET_DIR=${QL_QUADLET_DIR:-$HOME/.config/containers/systemd}
@@ -29,7 +32,7 @@ while (($#)); do
     --yes) yes=1 ;;
     --force) force=1 ;;
     --dry-run) export QL_DRY_RUN=1 ;;
-    -h | --help) sed -n '2,13p' "$0"; exit 0 ;;
+    -h | --help) sed -n '2,14p' "$0"; exit 0 ;;
     *) ql_die "unknown option $1 (see --help)" ;;
   esac
   shift
@@ -41,6 +44,11 @@ if cf_session_rides_tunnel && ((!force)) && [[ ${QL_DRY_RUN:-0} != 1 ]]; then
   ql_die "removing the tunnel would cut this session: $CF_SESSION_WHY. Reconnect over another path (the tailnet), or pass --force"
 fi
 if systemctl --user is-active --quiet "$NEW_UNIT" 2>/dev/null && [[ ${QL_DRY_RUN:-0} != 1 ]]; then
+  # its metrics server listens where the installed unit says, whatever METRICS_ADDR this
+  # shell carries (one set up for WOOW's GUI would count WOOW's edge connections)
+  m=''
+  [[ -f $QUADLET_DIR/apporo-cf-tunnel.container ]] && m=$(sed -n 's/^Environment=CF_METRICS_ADDR=//p' "$QUADLET_DIR/apporo-cf-tunnel.container" | tail -n1)
+  METRICS_ADDR=${m:-127.0.0.1:20341}
   n=$(cf_ready_conns)
   ((n < 1)) || ql_warn "the tunnel is serving with $n edge connection(s); removing it takes every public hostname down"
 fi
@@ -52,7 +60,16 @@ if ((!purge)); then
 fi
 
 vol=''
-[[ -f $QUADLET_DIR/woow-cf-tunnel-data.volume ]] && vol=$(sed -n 's/^VolumeName=//p' "$QUADLET_DIR/woow-cf-tunnel-data.volume" | tail -n1)
+[[ -f $QUADLET_DIR/apporo-cf-tunnel-data.volume ]] && vol=$(sed -n 's/^VolumeName=//p' "$QUADLET_DIR/apporo-cf-tunnel-data.volume" | tail -n1)
+# install.sh never renders a WOOW volume name; a hand-edited unit must not make --purge
+# export or delete WOOW's data
+if [[ -n $vol ]] && cf_foreign_volume "$vol"; then
+  ql_die "the installed apporo-cf-tunnel-data.volume names $vol, a volume of WOOW's Cloudflare Tunnel Web GUI; --purge never deletes it. Run without --purge, or re-install with CF_DATA_VOLUME=apporo_cf_data first"
+fi
+# by what podman says about it too, before the final backup exports it and before anything stops
+if [[ -n $vol ]]; then
+  cf_check_volume "$vol" deletes "Run without --purge to keep it; nothing was changed"
+fi
 if ((!yes)) && [[ ${QL_DRY_RUN:-0} != 1 ]]; then
   [[ -t 0 ]] || ql_die "--purge deletes the data volume ${vol:-}; add --yes to confirm non-interactively"
   ql_warn "--purge deletes volume ${vol:-<none>}: the tunnel token, settings and CSRF secret"

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tests/smoke.sh: post-install checks for woow-cf-tunnel on a real host. Exits non-zero on
+# tests/smoke.sh: post-install checks for apporo-cf-tunnel on a real host. Exits non-zero on
 # any failure. Read-only; never prints secrets (it reports whether cloudflared has a
 # --token argument, never a value).
 #
@@ -7,11 +7,16 @@
 #   EXPECT_CONNS=4 tests/smoke.sh         require full HA (4 edge connections)
 #   SMOKE_AUTH_USER=.. SMOKE_AUTH_PASS=.. also log in through the auth proxy
 #   SMOKE_PROC=/proc                      where to look for cloudflared processes
+#
+# The token check judges only the cloudflared of this app: the one in the cgroup of
+# apporo-cf-tunnel.service (Quadlet runs the payload under the unit's cgroup). Another
+# connector on this host, such as one of WOOW's GUI or a `cloudflared service install`, may
+# pass --token; that is reported as info, never counted against this install.
 set -uo pipefail
-ENV_FILE=${ENV_FILE:-$HOME/.config/woow-cf-tunnel/woow-cf-tunnel.env}
+ENV_FILE=${ENV_FILE:-$HOME/.config/apporo-cf-tunnel/apporo-cf-tunnel.env}
 QDIR=${QL_QUADLET_DIR:-$HOME/.config/containers/systemd}
-UNIT=woow-cf-tunnel.service
-CTR=woow-cf-tunnel
+UNIT=apporo-cf-tunnel.service
+CTR=apporo-cf-tunnel
 EXPECT_CONNS=${EXPECT_CONNS:-1}
 fails=0
 chk() { if eval "$2"; then echo "ok    $1"; else echo "FAIL  $1"; fails=$((fails + 1)); fi; }
@@ -19,9 +24,9 @@ chk() { if eval "$2"; then echo "ok    $1"; else echo "FAIL  $1"; fails=$((fails
 # Values the running container actually has (not secrets).
 cenv() { podman inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$CTR" 2>/dev/null | sed -n "s/^$1=//p"; }
 PORT=$(cenv UVICORN_PORT)
-PORT=${PORT:-18000}
+PORT=${PORT:-18100}
 METRICS=$(cenv CF_METRICS_ADDR)
-METRICS=${METRICS:-127.0.0.1:20241}
+METRICS=${METRICS:-127.0.0.1:20341}
 only_loopback() { # every TCP listener on port $1 is 127.0.0.1 / ::1
   # NOT a pipeline into grep -vq: grep -q exits at the first non-loopback listener, the
   # producer is then killed by SIGPIPE and pipefail makes the pipeline 141 -- which the
@@ -58,22 +63,32 @@ if [[ $running == True ]]; then
   done
   chk "cloudflared readyConnections=$n (want >= $EXPECT_CONNS)" "((${n:-0} >= EXPECT_CONNS))"
   chk "metrics port ${METRICS##*:} bound to loopback only" "only_loopback ${METRICS##*:}"
-  argv_token=$(python3 - <<'PY'
+  scan=$(UNIT=$UNIT python3 - <<'PY'
 import os
+import re
 proc = os.environ.get("SMOKE_PROC", "/proc")
-hits = 0
-for pid in filter(str.isdigit, os.listdir(proc)):
+ours = re.compile(r"/" + re.escape(os.environ["UNIT"]) + r"(/|$)", re.M)
+hits, others = 0, []
+for pid in sorted(filter(str.isdigit, os.listdir(proc)), key=int):
     try:
         if open(f"{proc}/{pid}/comm").read().strip() != "cloudflared":
             continue
         args = open(f"{proc}/{pid}/cmdline", "rb").read().split(b"\0")
+        cgroup = open(f"{proc}/{pid}/cgroup").read()
     except OSError:
         continue
-    hits += any(a == b"--token" or a.startswith(b"--token=") for a in args)
-print(hits)
+    token = any(a == b"--token" or a.startswith(b"--token=") for a in args)
+    if ours.search(cgroup):
+        hits += token
+    elif token:
+        others.append(pid)
+print(hits, ",".join(others))
 PY
   )
-  chk "tunnel token not in any cloudflared argv (--token-file only)" "[ '$argv_token' = 0 ]"
+  read -r argv_token other_token <<<"$scan"
+  # an empty count (the scan itself failed) is a failure, not a pass
+  chk "tunnel token not in the argv of this app's cloudflared (--token-file only)" "[ '${argv_token:-}' = 0 ]"
+  [[ -z ${other_token:-} ]] || echo "info  cloudflared outside $UNIT (pid ${other_token//,/, }) has a --token argument: not this app's connector, not checked"
 else
   echo "info  tunnel not running (unconfigured install?): edge checks skipped"
 fi
@@ -81,15 +96,15 @@ fi
 for _ in $(seq 1 18); do [ "$(podman inspect -f '{{.State.Health.Status}}' "$CTR" 2>/dev/null)" = healthy ] && break; sleep 5; done
 chk "podman health status healthy" "[ \"\$(podman inspect -f '{{.State.Health.Status}}' $CTR)\" = healthy ]"
 
-if [[ -e $QDIR/woow-cf-tunnel-auth.container ]]; then
+if [[ -e $QDIR/apporo-cf-tunnel-auth.container ]]; then
   listen=$(sed -n 's/^AUTH_LISTEN=//p' "$ENV_FILE" 2>/dev/null)
-  listen=${listen:-127.0.0.1:8888}
+  listen=${listen:-127.0.0.1:8988}
   host=${listen%:*}
   [[ $host == 0.0.0.0 ]] && host=127.0.0.1
   base=http://$host:${listen##*:}
   code() { curl -s -o /dev/null -w '%{http_code}' -m 3 "$@"; }
   for _ in $(seq 1 20); do [ "$(code "$base/healthz")" = 204 ] && break; sleep 3; done
-  chk "auth proxy active" "systemctl --user is-active --quiet woow-cf-tunnel-auth.service"
+  chk "auth proxy active" "systemctl --user is-active --quiet apporo-cf-tunnel-auth.service"
   chk "auth proxy /healthz 204" "[ \"\$(code $base/healthz)\" = 204 ]"
   chk "auth proxy rejects anonymous requests (401)" "[ \"\$(code $base/api/config)\" = 401 ]"
   if [[ -n ${SMOKE_AUTH_USER:-} ]]; then

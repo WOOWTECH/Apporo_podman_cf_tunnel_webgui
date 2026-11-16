@@ -1,24 +1,36 @@
 #!/usr/bin/env bash
 # Mock curl for tests/harness: answers for cloudflared's metrics server (/ready, /config),
-# the GUI (/api/health), the auth proxy and three public hostnames, from $MOCK_STATE.
+# the GUI (/api/health), the auth proxy and three public hostnames, from $MOCK_STATE. Every
+# URL is logged to calls.log ("curl <url>"; never a credential), so a probe that reached
+# WOOW's GUI instead of ours shows up there.
 #
 # The /config body mirrors what a live connector sends (captured from cloudflared 2026.6.1):
 # every ingress rule carries the hostname key, and the catch-all carries it with an EMPTY
 # value rather than omitting it. That is load-bearing -- a mock that omitted the key let
-# cf_ingress_map's dict default hide a bug that refused a real migration on toypark1234
+# cf_ingress_map's dict default hide a bug that refused a real swap
 # (see tests/cf-gate-ingress.sh).
 # /ready likewise carries connectorId beside status and readyConnections. Only the 200 body
 # was read off a live connector; the 503 warm-up body is this mock's own, and no caller
 # reads either field beyond readyConnections.
-# Knobs: MOCK_SCENARIO (never_ready | version_changed | public_mismatch | broken_config),
+# Knobs: MOCK_SCENARIO (never_ready | version_changed | public_mismatch | broken_config; all
+#                       but broken_config only while the new image MOCK_NEW_IMAGE runs),
 #        MOCK_BAD_IMAGE (a running image that never gets edge connections),
 #        MOCK_WARMUP (/ready calls answered 503 after each start of the new unit; default 2),
-#        MOCK_EXTRA_ING (extra ingress JSON entries, each followed by a comma),
 #        MOCK_NO_METRICS (nothing listens on the metrics port: an unconfigured or crashed
-#                         tunnel, so every /ready and /config call is refused).
+#                         tunnel, so every /ready and /config call is refused),
+#        MOCK_WOOW=1 (WOOW's GUI runs on its own defaults: GUI 18000, metrics 20241,
+#                     auth proxy 8888; woow_host in common.sh).
+# Our units answer on the ports they were (re)started with (running_gui, running_metrics,
+# running_auth; default 18100, 127.0.0.1:20341, 8988), so an upgrade that moves a port is
+# probed where each unit really listens.
 set -u
 S=${MOCK_STATE:?}
 st() { cat "$S/$1" 2>/dev/null || echo "${2:-0}"; }
+run_val() { local v; v=$(cat "$S/$1" 2>/dev/null); printf '%s' "${v:-$2}"; }
+M=$(run_val running_metrics 127.0.0.1:20341)
+G=$(run_val running_gui 18100)
+AP=$(run_val running_auth 127.0.0.1:8988)
+AP=${AP##*:}
 url='' wfmt='' prev='' auth=0
 for a in "$@"; do
   case $a in http*) url=$a ;; esac
@@ -26,46 +38,50 @@ for a in "$@"; do
   [[ $prev == -K || $prev == -u ]] && auth=1
   prev=$a
 done
-L=$(st legacy_active)
-N=$(st units/woow-cf-tunnel.service/active 0)
-A=$(st units/woow-cf-tunnel-auth.service/active 0)
+echo "curl $url" >>"$S/calls.log"
+N=$(st units/apporo-cf-tunnel.service/active 0)
+A=$(st units/apporo-cf-tunnel-auth.service/active 0)
+W=${MOCK_WOOW:-0}
 sc=${MOCK_SCENARIO:-happy}
-bad_image=0
-[[ $N == 1 && -n ${MOCK_BAD_IMAGE:-} && $(st running_image '') == "$MOCK_BAD_IMAGE" ]] && bad_image=1
+img=$(st running_image '')
+bad_image=0 new_image=0
+[[ $N == 1 && -n ${MOCK_BAD_IMAGE:-} && $img == "$MOCK_BAD_IMAGE" ]] && bad_image=1
+[[ $N == 1 && -n ${MOCK_NEW_IMAGE:-} && $img == "$MOCK_NEW_IMAGE" ]] && new_image=1
 body='' code=200
 # the container shares the host netns, so the metrics port is only open while cloudflared
 # itself runs: with no token (or a bogus one) the connection is refused, unit active or not
-if [[ ${MOCK_NO_METRICS:-0} == 1 && $url == http://127.0.0.1:20241/* ]]; then exit 7; fi
+if [[ ${MOCK_NO_METRICS:-0} == 1 && $url == "http://$M/"* ]]; then exit 7; fi
 case $url in
-  http://127.0.0.1:20241/ready)
-    if [[ $L == 1 ]]; then
-      body='{"status":200,"readyConnections":4,"connectorId":"00000000-0000-4000-8000-000000000000"}'
-    elif [[ $N == 1 ]]; then
-      c=$(($(st new_ready_calls) + 1))
-      echo "$c" >"$S/new_ready_calls"
-      if [[ $sc == never_ready || $bad_image == 1 || $c -le ${MOCK_WARMUP:-2} || -e $S/soaking ]]; then
-        body='{"status":503,"readyConnections":0}' code=503
-      else
-        body='{"status":200,"readyConnections":4,"connectorId":"00000000-0000-4000-8000-000000000000"}'
-      fi
+  "http://$M/ready")
+    [[ $N == 1 ]] || exit 7
+    c=$(($(st new_ready_calls) + 1))
+    echo "$c" >"$S/new_ready_calls"
+    if [[ ($sc == never_ready && $new_image == 1) || $bad_image == 1 || $c -le ${MOCK_WARMUP:-2} || (-e $S/soaking && $new_image == 1) ]]; then
+      body='{"status":503,"readyConnections":0}' code=503
     else
-      exit 7
+      body='{"status":200,"readyConnections":4,"connectorId":"00000000-0000-4000-8000-000000000000"}'
     fi ;;
-  http://127.0.0.1:20241/config)
-    [[ $L == 1 || $N == 1 ]] || exit 7
+  "http://$M/config")
+    [[ $N == 1 ]] || exit 7
     v=28
-    [[ $N == 1 && $sc == version_changed ]] && v=29
-    body="{\"version\":$v,\"config\":{\"ingress\":[{\"hostname\":\"a.example.io\",\"service\":\"http://localhost:8123\"},{\"hostname\":\"ssh.example.io\",\"service\":\"ssh://localhost:22\"},{\"hostname\":\"dead.example.io\",\"service\":\"http://localhost:8787\"},${MOCK_EXTRA_ING:-}{\"hostname\":\"\",\"service\":\"http_status:404\"}]}}"
+    [[ $sc == version_changed && $new_image == 1 ]] && v=29
+    body="{\"version\":$v,\"config\":{\"ingress\":[{\"hostname\":\"a.example.io\",\"service\":\"http://localhost:8123\"},{\"hostname\":\"ssh.example.io\",\"service\":\"ssh://localhost:22\"},{\"hostname\":\"dead.example.io\",\"service\":\"http://localhost:8787\"},{\"hostname\":\"\",\"service\":\"http_status:404\"}]}}"
     [[ $sc == broken_config ]] && body='not json' ;;
+  # WOOW's connector on its own metrics port: a different tunnel, always ready
+  http://127.0.0.1:20241/ready)
+    [[ $W == 1 ]] || exit 7
+    body='{"status":200,"readyConnections":4,"connectorId":"11111111-1111-4111-8111-111111111111"}' ;;
+  http://127.0.0.1:20241/config)
+    [[ $W == 1 ]] || exit 7
+    body='{"version":7,"config":{"ingress":[{"hostname":"woow.example.io","service":"http://localhost:8123"},{"hostname":"","service":"http_status:404"}]}}' ;;
   http://127.0.0.1:*)
     port=${url#http://127.0.0.1:}
     path=/${port#*/}
     port=${port%%/*}
-    # the legacy GUI and the auth proxy can share a port (openclaw: 8888)
-    if [[ ($port == "${LEGACY_GUI_PORT:-18000}" && $L == 1) || ($port == "${GUI_PORT:-18000}" && $N == 1) ]]; then
+    if [[ ($port == "$G" && $N == 1) || ($port == 18000 && $W == 1) ]]; then
       [[ $path == /api/health ]] || exit 6
       body='{"status":"ok","process_running":true}'
-    elif [[ $port == "${AUTH_PORT:-8888}" && $A == 1 ]]; then
+    elif [[ ($port == "$AP" && $A == 1) || ($port == 8888 && $W == 1) ]]; then
       case $path in
         /healthz) code=204 ;;
         *) if ((auth)); then code=200; else code=401; fi ;;
@@ -73,13 +89,11 @@ case $url in
     else
       exit 7
     fi ;;
-  https://gui.example.io/)
-    if [[ $L == 1 ]]; then code=200; elif [[ $A == 1 ]]; then code=401; elif [[ $N == 1 ]]; then code=502; else code=530; fi ;;
   https://a.example.io/)
-    if [[ $L == 1 || $N == 1 ]]; then code=200; else code=530; fi
-    [[ $N == 1 && $sc == public_mismatch ]] && code=502 ;;
-  https://ssh.example.io/) if [[ $L == 1 || $N == 1 ]]; then code=200; else code=530; fi ;;
-  https://dead.example.io/) if [[ $L == 1 || $N == 1 ]]; then code=502; else code=530; fi ;;
+    if [[ $N == 1 ]]; then code=200; else code=530; fi
+    [[ $sc == public_mismatch && $new_image == 1 ]] && code=502 ;;
+  https://ssh.example.io/) if [[ $N == 1 ]]; then code=200; else code=530; fi ;;
+  https://dead.example.io/) if [[ $N == 1 ]]; then code=502; else code=530; fi ;;
   *) exit 6 ;;
 esac
 # -f: fail on HTTP >= 400 like the real curl

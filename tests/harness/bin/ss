@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
-# Mock ss for tests/harness: a port is "listening" while the unit that owns it is active,
+# Mock ss for tests/harness: a port is "listening" while the unit that owns it is active
+# (on the ports it was (re)started with: running_gui, running_metrics, running_auth),
 # and `-p` (cf_session_rides_tunnel looking up who carries this ssh session) answers from
 # MOCK_SSH_CARRIER -- the process holding the client end of the loopback pair, which is what
-# tells a cloudflared session from a tailnet one.
+# tells a cloudflared session from a tailnet one. With MOCK_WOOW=1, WOOW's GUI holds its own
+# defaults (18000, 20241, 8888): ours must not need any of them.
 S=${MOCK_STATE:?}
 st() { cat "$S/$1" 2>/dev/null || echo 0; }
+run_val() { local v; v=$(cat "$S/$1" 2>/dev/null); printf '%s' "${v:-$2}"; }
 port=$(printf '%s' "$*" | sed -n 's/.*sport = :\([0-9]*\).*/\1/p')
 if [[ " $* " == *" -tnpH "* ]]; then
   read -r csrc cport _ dport <<<"${SSH_CONNECTION:-}"
@@ -17,14 +20,15 @@ if [[ " $* " == *" -tnpH "* ]]; then
   fi
   exit 0
 fi
-L=$(st legacy_active)
-N=$(st units/woow-cf-tunnel.service/active)
-A=$(st units/woow-cf-tunnel-auth.service/active)
+N=$(st units/apporo-cf-tunnel.service/active)
+A=$(st units/apporo-cf-tunnel-auth.service/active)
 busy=0
-[[ $port == "${LEGACY_GUI_PORT:-18000}" && $L == 1 ]] && busy=1
-[[ $port == "${GUI_PORT:-18000}" && $N == 1 ]] && busy=1
-[[ $port == 20241 && ($L == 1 || $N == 1) ]] && busy=1
-[[ $port == 8888 && $A == 1 ]] && busy=1
+M=$(run_val running_metrics 127.0.0.1:20341)
+AP=$(run_val running_auth 127.0.0.1:8988)
+[[ $port == "$(run_val running_gui 18100)" && $N == 1 ]] && busy=1
+[[ $port == "${M##*:}" && $N == 1 ]] && busy=1
+[[ $port == "${AP##*:}" && $A == 1 ]] && busy=1
+[[ ${MOCK_WOOW:-0} == 1 && " 18000 20241 8888 " == *" $port "* ]] && busy=1
 [[ -n ${MOCK_BUSY_PORTS:-} && " $MOCK_BUSY_PORTS " == *" $port "* ]] && busy=1
 ((busy)) && echo "LISTEN 0 4096 127.0.0.1:$port 0.0.0.0:*"
 exit 0

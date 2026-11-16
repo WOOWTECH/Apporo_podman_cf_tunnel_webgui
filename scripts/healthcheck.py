@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Container healthcheck for woow-cf-tunnel (baked into the image as
+"""Container healthcheck for apporo-cf-tunnel (baked into the image as
 /usr/local/bin/cf-webui-healthcheck; stdlib only).
 
 Healthy means:
@@ -17,8 +17,13 @@ the GUI's Start removes it.
 
 With HealthOnFailure=kill, 3 consecutive failures make podman kill the
 container; systemd (Restart=always) recreates it and the app autostarts
-cloudflared. This covers "cloudflared died but the backend is still up", which
-the legacy deployment never noticed.
+cloudflared. This covers "cloudflared died but the backend is still up".
+
+Without CF_METRICS_ADDR (the Quadlet unit always sets it) the metrics address
+defaults to 127.0.0.1:20341, the same default as the backend
+(backend/services/process_manager.DEFAULT_METRICS_ADDR), so both read the same
+/ready. It is not cloudflared's usual 20241, which a WOOW connector on the same
+host may hold.
 
 It never reads the token's contents, only whether the file is non-empty.
 """
@@ -30,7 +35,7 @@ import urllib.request
 
 DATA = os.environ.get("CF_DATA_DIR", "/data")
 PORT = os.environ.get("UVICORN_PORT", "8000")
-METRICS = os.environ.get("CF_METRICS_ADDR") or "127.0.0.1:20241"
+METRICS = os.environ.get("CF_METRICS_ADDR") or "127.0.0.1:20341"
 TIMEOUT = float(os.environ.get("CF_HEALTH_TIMEOUT", "4"))
 
 

@@ -1,23 +1,30 @@
 #!/usr/bin/env bash
 # Mock podman for tests/harness; never touches real containers. State in $MOCK_STATE
 # (see the systemctl mock) plus images/<ref with / : @ as _>.
-# MOCK_SCENARIO=unhealthy: the new container never reports healthy.
+# MOCK_SCENARIO=unhealthy: the new image (MOCK_NEW_IMAGE) never reports healthy.
 # MOCK_BAD_IMAGE=<ref>: a container running that image never becomes healthy.
-# MOCK_LEGACY_VOL: the legacy container's /data volume (default cf_data).
-# MOCK_LEGACY_POLICY: the legacy container's restart policy (default unless-stopped). With
-#   "always" AND podman-restart.service enabled (MOCK_PODMAN_RESTART in the systemctl mock),
-#   migrate-legacy.sh captures and removes the container instead of leaving it stopped, so
-#   this mock also answers the capture templates and replays a `podman create`.
+# MOCK_VOLUMES: the volumes that exist (default apporo_cf_data, the one the volume unit
+#   creates). MOCK_WOOW=1: WOOW's containers (woow-cf-tunnel, woow-cf-tunnel-auth,
+#   cf-tunnel-webgui) exist and run, next to ours (woow_host in common.sh).
+# MOCK_VOLUME_LABELS / MOCK_VOLUME_COMPOSE / MOCK_VOLUME_USERS: "<volume>=<value> ..." -- what
+#   `podman volume inspect` says of a volume's io.woowtech.app label and compose project, and
+#   which other containers `podman ps -a --filter volume=` lists (ours is listed while it runs)
 set -u
 S=${MOCK_STATE:?}
 echo "podman $*" >>"$S/calls.log"
 st() { cat "$S/$1" 2>/dev/null || echo "${2:-0}"; }
+of() { local e; for e in $1; do [[ ${e%%=*} == "$2" ]] && printf '%s\n' "${e#*=}"; done; return 0; }
+run_val() { local v; v=$(cat "$S/$1" 2>/dev/null); printf '%s' "${v:-$2}"; }
 ikey() { printf '%s' "${1//[\/:@]/_}"; }
-LEGACY_IMAGE=localhost/cf-webui:8214177d40f4
-new_up() { [[ $(st units/woow-cf-tunnel.service/active 0) == 1 ]]; }
+new_up() { [[ $(st units/apporo-cf-tunnel.service/active 0) == 1 ]]; }
 new_healthy() {
-  new_up && [[ ${MOCK_SCENARIO:-} != unhealthy ]] && [[ -z ${MOCK_BAD_IMAGE:-} || $(st running_image '') != "$MOCK_BAD_IMAGE" ]]
+  local img
+  new_up || return 1
+  img=$(st running_image '')
+  [[ ${MOCK_SCENARIO:-} == unhealthy && -n ${MOCK_NEW_IMAGE:-} && $img == "$MOCK_NEW_IMAGE" ]] && return 1
+  [[ -z ${MOCK_BAD_IMAGE:-} || $img != "$MOCK_BAD_IMAGE" ]]
 }
+woow_ctr() { [[ ${MOCK_WOOW:-0} == 1 && " woow-cf-tunnel woow-cf-tunnel-auth cf-tunnel-webgui " == *" $1 "* ]]; }
 [[ ${1:-} == --version ]] && { echo "podman version 4.9.3"; exit 0; }
 cmd=${1:-}
 shift || true
@@ -29,7 +36,7 @@ case $cmd in
     mkdir -p "$S/images"; : >"$S/images/$(ikey "$img")"; exit 0 ;;
   image)
     case ${1:-} in
-      exists) [[ $2 == "$LEGACY_IMAGE" || -e $S/images/$(ikey "$2") ]]; exit ;;
+      exists) [[ -e $S/images/$(ikey "$2") ]]; exit ;;
     esac
     exit 0 ;;
   pull) mkdir -p "$S/images"; : >"$S/images/$(ikey "${!#}")"; exit 0 ;;
@@ -43,32 +50,11 @@ case $cmd in
     case ${1:-} in
       exists)
         case $2 in
-          cf-tunnel-webgui) [[ -e $S/legacy_container ]] ;;
-          woow-cf-tunnel) new_up ;;
-          *) false ;;
+          apporo-cf-tunnel) new_up ;;
+          *) woow_ctr "$2" ;;
         esac
         exit ;;
     esac
-    exit 0 ;;
-  rm)
-    for a in "$@"; do
-      [[ $a == -* ]] && continue
-      [[ $a == cf-tunnel-webgui ]] || continue
-      [[ -e $S/legacy_container ]] || { echo "Error: no such container $a" >&2; exit 1; }
-      rm -f "$S/legacy_container"
-      echo 0 >"$S/legacy_active"
-    done
-    exit 0 ;;
-  create)
-    # the rollback's ql_recreate_container replay: record the policy it re-adds and bring
-    # the legacy container object back, stopped
-    pol=''
-    for a in "$@"; do case $a in --restart=*) pol=${a#--restart=} ;; esac; done
-    [[ -e $S/legacy_container ]] && { echo "Error: container name is already in use" >&2; exit 125; }
-    printf '%s' "${pol:-no}" >"$S/legacy_policy"
-    touch "$S/legacy_container"
-    echo 0 >"$S/legacy_active"
-    echo shimid-cf-tunnel-webgui
     exit 0 ;;
   inspect)
     fmt='' iargs=()
@@ -82,48 +68,30 @@ case $cmd in
     set -- "${iargs[@]:-}"
     name=${1:-}
     case $name in
-      cf-tunnel-webgui)
-        [[ -e $S/legacy_container ]] || exit 125
-        pol=$(st legacy_policy "${MOCK_LEGACY_POLICY:-unless-stopped}")
-        case $fmt in
-          # ---- the templates quadlet-lib's capture / recreate helpers use ----------------
-          *MaximumRetryCount*) printf 'cid-legacy|sha256:legacyimg|%s|%s|0||false|host|||\n' "$LEGACY_IMAGE" "$pol" ;;
-          *CreateCommand*)
-            printf '%s\0' /usr/bin/podman run --name cf-tunnel-webgui -d --network=host \
-              --restart "$pol" -v "${MOCK_LEGACY_VOL:-cf_data}:/data" "$LEGACY_IMAGE"
-            echo ;;
-          *Propagation*) printf 'volume|%s|/vol/%s|/data|true|rprivate\n' "${MOCK_LEGACY_VOL:-cf_data}" "${MOCK_LEGACY_VOL:-cf_data}" ;;
-          *Aliases* | *NetworkSettings.Networks* | *NetworkSettings.Ports*) ;;
-          *"range \$k"*) ;; # the label template; the $k is Go template text, not a shell expansion
-          *SizeRw*) echo 777260 ;;
-          *RestartPolicy.Name*) echo "$pol" ;;
-          *Config.Image*) echo "$LEGACY_IMAGE" ;;
-          # ---- what migrate-legacy.sh itself reads ---------------------------------------
-          *Mounts*) echo "${MOCK_LEGACY_VOL:-cf_data}" ;;
-          *State.Running*) if [[ $(st legacy_active) == 1 ]]; then echo true; else echo false; fi ;;
-          *ImageName*) echo "$LEGACY_IMAGE" ;;
-          '') echo '[{"Name":"cf-tunnel-webgui"}]' ;;
-        esac ;;
-      woow-cf-tunnel)
+      apporo-cf-tunnel)
         new_up || exit 125
         case $fmt in
-          *PODMAN_SYSTEMD_UNIT*) echo woow-cf-tunnel.service ;;
+          *PODMAN_SYSTEMD_UNIT*) echo apporo-cf-tunnel.service ;;
           *State.Status*'|'*) if new_healthy; then echo "running|hc|healthy|2026-09-12T00:00:00Z"; else echo "running|hc|unhealthy|2026-09-12T00:00:00Z"; fi ;;
           *State.Health.Status*) if new_healthy; then echo healthy; else echo unhealthy; fi ;;
           *HealthcheckOnFailureAction*) echo kill ;;
-          *Config.Env*) printf 'UVICORN_HOST=127.0.0.1\nUVICORN_PORT=%s\nCF_METRICS_ADDR=127.0.0.1:20241\n' "${GUI_PORT:-18000}" ;;
-          '') echo '[{"Name":"woow-cf-tunnel"}]' ;;
+          *Config.Env*) printf 'UVICORN_HOST=127.0.0.1\nUVICORN_PORT=%s\nCF_METRICS_ADDR=%s\n' \
+            "$(run_val running_gui 18100)" "$(run_val running_metrics 127.0.0.1:20341)" ;;
+          '') echo '[{"Name":"apporo-cf-tunnel"}]' ;;
         esac ;;
-      woow-cf-tunnel-auth)
-        [[ $(st units/woow-cf-tunnel-auth.service/active 0) == 1 ]] || exit 125
-        case $fmt in *PODMAN_SYSTEMD_UNIT*) echo woow-cf-tunnel-auth.service ;; esac ;;
+      apporo-cf-tunnel-auth)
+        [[ $(st units/apporo-cf-tunnel-auth.service/active 0) == 1 ]] || exit 125
+        case $fmt in *PODMAN_SYSTEMD_UNIT*) echo apporo-cf-tunnel-auth.service ;; esac ;;
       *)
-        case $fmt in *State.Status*) echo running ;; esac ;;  # the rescue container
+        woow_ctr "$name" || exit 125 ;;
     esac
     exit 0 ;;
   volume)
     case ${1:-} in
-      exists) [[ $2 == "${MOCK_LEGACY_VOL:-cf_data}" ]]; exit ;;
+      exists) [[ " ${MOCK_VOLUMES:-apporo_cf_data} " == *" $2 "* ]]; exit ;;
+      inspect)
+        if [[ $* == *compose* ]]; then of "${MOCK_VOLUME_COMPOSE:-}" "${!#}"; else of "${MOCK_VOLUME_LABELS:-}" "${!#}"; fi
+        exit 0 ;;
       export)
         printf 'settings.json\n.tunnel_token\n.csrf_secret\n' >"$S/vol.list"
         tar -cf "$4" -C "$S" vol.list; exit ;;
@@ -131,20 +99,8 @@ case $cmd in
     esac
     exit 0 ;;
   ps)
-    if [[ " $* " == *volume=* ]] && new_up; then echo woow-cf-tunnel; fi
-    exit 0 ;;
-  save)
-    [[ $1 == -o ]] && echo image >"$2"; exit 0 ;;
-  exec)
-    # `podman exec <c> sh -c 'tailscale serve status --json'`: the rescue-path proof
-    # migrate-legacy.sh demands (cf-gate.sh, cf_rescue_ssh_ok). The default models a rescue
-    # container that really does serve TCP :22 on the tailnet; MOCK_RESCUE_NO_SSH=1 models
-    # woowtechopenclaw's woow-tailscale-gateway, which serves 18081/443/8443/9443/9444 only.
-    if [[ ${MOCK_RESCUE_NO_SSH:-0} == 1 ]]; then
-      echo '{"TCP":{"443":{"HTTPS":true},"8443":{"HTTPS":true},"9443":{"HTTPS":true},"9444":{"HTTPS":true},"18081":{"HTTPS":true}},"Web":{}}'
-    else
-      echo '{"TCP":{"22":{"TCPForward":"127.0.0.1:22"},"443":{"HTTPS":true}},"Web":{}}'
-    fi
+    if [[ " $* " == *volume=* ]] && new_up; then echo apporo-cf-tunnel; fi
+    for a in "$@"; do [[ $a == volume=* ]] && of "${MOCK_VOLUME_USERS:-}" "${a#volume=}"; done
     exit 0 ;;
   healthcheck) new_healthy; exit ;;
   *) exit 0 ;;

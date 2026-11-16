@@ -1,32 +1,52 @@
 #!/usr/bin/env bash
-# tests/harness/scenario.sh: run one migrate-legacy.sh or upgrade.sh scenario against the
-# mocks and print its outcome (phase, result, end state). Called by run-all.sh; usable on
-# its own for debugging:
+# tests/harness/scenario.sh: run one upgrade.sh scenario against the mocks and print its
+# outcome (phase, result, end state). Called by run-all.sh; usable on its own for debugging:
 #
-#   HARNESS_TMP=$(mktemp -d) tests/harness/scenario.sh migrate happy direct
+#   HARNESS_TMP=$(mktemp -d) tests/harness/scenario.sh upgrade happy direct
 #
-#   scenario.sh migrate <scenario> <mode>   modes: direct swap sigterm abort
+#   scenario.sh upgrade <scenario> <mode>   modes: direct swap sigterm abort
 #                                                  soak_restart soak_lost postcommit_rollback
-#   scenario.sh upgrade <scenario> <mode>   modes: direct swap
-# Scenarios pick the mock behaviour: happy, never_ready, version_changed, public_mismatch,
-# unhealthy, broken_config, legacy_unhealthy, tunnel_session, tailnet_session, openclaw,
-# openclaw_always, bad_image, noop.
-#   openclaw         woowtechopenclaw as it is today: podman-restart.service enabled, but the
-#                    legacy container is unless-stopped, so the rename/leave-stopped shape is
-#                    still safe and the swap must behave exactly as before
-#   openclaw_always  the same host with the legacy container at restart-policy=always: the
-#                    swap must capture and remove it, and a rollback must recreate it
+# Each scenario installs the current commit, makes a new one and upgrades to it. Scenarios
+# pick how the NEW image behaves (MOCK_NEW_IMAGE): happy, never_ready, version_changed,
+# public_mismatch, unhealthy, bad_image; or what the run meets: broken_config (an unreadable
+# /config at baseline time), noop (nothing to upgrade).
+#   coexist[_<scenario>]  the same with WOOW's GUI running on this host (woow_host): the
+#                         report adds woow=untouched when nothing reached for it
+#   env[_<scenario>]      ... from a shell that carries WOOW's unit, container and ports
+#                         (woow_shell); after coexist, as in coexist_env[_<scenario>]
+#   ports[_<scenario>]    the upgrade also moves the GUI and the metrics port (18101,
+#                         127.0.0.1:20342); the report shows where the tunnel listens at the end
 set -uo pipefail
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
 # shellcheck source=common.sh
 . "$HERE/common.sh"
 kind=$1 sc=$2 mode=${3:-direct}
-old_image='' new_image=''
+[[ $kind == upgrade ]] || { echo "scenario.sh: unknown kind '$kind' (this fork has no legacy migration)" >&2; exit 64; }
+old_image='' new_image='' woow=0 ports=0
 snapshot_repo
 sandbox "$kind-$sc-$mode"
+if [[ $sc == coexist || $sc == coexist_* ]]; then
+  woow=1
+  woow_host
+  sc=${sc#coexist}
+  sc=${sc#_}
+  sc=${sc:-happy}
+fi
+if [[ $sc == env || $sc == env_* ]]; then
+  woow_shell
+  sc=${sc#env}
+  sc=${sc#_}
+  sc=${sc:-happy}
+fi
+if [[ $sc == ports || $sc == ports_* ]]; then
+  ports=1
+  sc=${sc#ports}
+  sc=${sc#_}
+  sc=${sc:-happy}
+fi
 export MOCK_SCENARIO=$sc
 # Short timings: the gate and soak logic is what is under test, not the clock.
-export GATE_TIMEOUT=8 POLL=1 SOAK_SECONDS=${SOAKS:-4} SOAK_POLL=1 LEGACY_READY_TIMEOUT=6 \
+export GATE_TIMEOUT=8 POLL=1 SOAK_SECONDS=${SOAKS:-4} SOAK_POLL=1 \
   RESTORE_TIMEOUT=6 CURL_PUBLIC_TIMEOUT=1 EXPECT_CONNS=4 MOCK_WARMUP=2
 RUN=''
 
@@ -44,99 +64,65 @@ report() {
   local q
   q=$(QDIR)
   printf '  phase=%s\n  result=%s\n' "$(cat "$RUN/PHASE" 2>/dev/null)" "$(cat "$RUN/RESULT" 2>/dev/null)"
-  printf '  legacy_container=%s legacy_policy=%s capture=%s\n' \
-    "$([[ -e $MOCK_STATE/legacy_container ]] && echo present || echo removed)" \
-    "$(cat "$MOCK_STATE/legacy_policy" 2>/dev/null || echo "${MOCK_LEGACY_POLICY:-unless-stopped}")" \
-    "$(find "$HOME/backups" -path '*/legacy-container/cf-tunnel-webgui/meta' 2>/dev/null | wc -l)"
-  printf '  end: legacy_active=%s legacy_enabled=%s new_active=%s auth_active=%s quadlet_files=[%s] legacy_unit_file=%s image=%s backups=%s\n' \
-    "$(cat "$MOCK_STATE/legacy_active" 2>/dev/null || echo -)" \
-    "$(cat "$MOCK_STATE/legacy_enabled" 2>/dev/null || echo -)" \
-    "$(cat "$MOCK_STATE/units/woow-cf-tunnel.service/active" 2>/dev/null || echo 0)" \
-    "$(cat "$MOCK_STATE/units/woow-cf-tunnel-auth.service/active" 2>/dev/null || echo 0)" \
-    "$(find "$q" -maxdepth 1 -type f -printf '%f ' 2>/dev/null)" \
-    "$([[ -e $HOME/.config/systemd/user/cf-tunnel-webgui.service ]] && echo kept || echo MISSING)" \
+  printf '  end: new_active=%s auth_active=%s quadlet_files=[%s] image=%s backups=%s\n' \
+    "$(cat "$MOCK_STATE/units/apporo-cf-tunnel.service/active" 2>/dev/null || echo 0)" \
+    "$(cat "$MOCK_STATE/units/apporo-cf-tunnel-auth.service/active" 2>/dev/null || echo 0)" \
+    "$(find "$q" -maxdepth 1 -type f -name 'apporo-cf-tunnel*' -printf '%f ' 2>/dev/null)" \
     "$(cat "$MOCK_STATE/running_image" 2>/dev/null || echo -)" \
     "$(find "$HOME/backups" -name '*.tar' 2>/dev/null | wc -l)"
-  if [[ $kind == upgrade ]]; then
-    lbl() {
-      case $1 in "$old_image") echo old ;; "$new_image") echo new ;; *) echo "other($1)" ;; esac
-    }
-    printf '  images: running=%s installed=%s\n' \
-      "$(lbl "$(cat "$MOCK_STATE/running_image" 2>/dev/null)")" \
-      "$(lbl "$(sed -n 's/^Image=//p' "$q/woow-cf-tunnel.container" 2>/dev/null)")"
+  lbl() {
+    case $1 in "$old_image") echo old ;; "$new_image") echo new ;; *) echo "other($1)" ;; esac
+  }
+  printf '  images: running=%s installed=%s\n' \
+    "$(lbl "$(cat "$MOCK_STATE/running_image" 2>/dev/null)")" \
+    "$(lbl "$(sed -n 's/^Image=//p' "$q/apporo-cf-tunnel.container" 2>/dev/null)")"
+  printf '  ports: gui=%s metrics=%s\n' "$(cat "$MOCK_STATE/running_gui" 2>/dev/null)" \
+    "$(cat "$MOCK_STATE/running_metrics" 2>/dev/null)"
+  printf '  baseline: ready_conns=%s\n' "$(cat "$RUN/ready_conns" 2>/dev/null)"
+  if ((woow)); then
+    local out
+    if out=$(woow_untouched); then echo "  woow=untouched"; else echo "  woow=TOUCHED"; printf '%s\n' "$out"; fi
   fi
-  grep -hE 'removed the legacy container|recreated ' "$RUN/watchdog.log" 2>/dev/null | sed 's/^/  log: /'
   grep -hE 'outage|waiting|ROLLBACK' "$RUN/watchdog.log" 2>/dev/null | head -n 3 | sed 's/^/  log: /'
 }
 
-# ---- migrate ---------------------------------------------------------------------------------
-if [[ $kind == migrate ]]; then
-  legacy_host
-  env_file
-  pf_args=(--allow-dirty)
-  if [[ $sc == openclaw || $sc == openclaw_always ]]; then
-    # openclaw: persistent legacy container, GUI on 8888, compose-named volume, auth proxy
-    # taking over the port the public hostname already points at
-    export MOCK_PERSIST=1 MOCK_LEGACY_VOL=woow_cloudflare_tunnel_webgui_cf_data \
-      LEGACY_UNIT=podman-cf-tunnel-webgui.service LEGACY_GUI_PORT=8888 \
-      HTTP_OVERRIDES="gui.example.io=401" RESCUE_CONTAINER=none \
-      MOCK_EXTRA_ING='{"hostname":"gui.example.io","service":"http://localhost:8888"},'
-    set_env CF_DATA_VOLUME woow_cloudflare_tunnel_webgui_cf_data
-    printf '[Unit]\nDescription=legacy\n[Service]\nExecStart=/usr/bin/podman start -a cf-tunnel-webgui\n[Install]\nWantedBy=default.target\n' \
-      >"$HOME/.config/systemd/user/podman-cf-tunnel-webgui.service"
-    echo 'correct-horse-battery' | bash "$R/scripts/auth-passwd.sh" admin >/dev/null
-    pf_args+=(--with-auth)
-    # podman-restart.service is enabled on this host. Whether that matters depends on the
-    # legacy container's own restart policy, which is the only thing that differs here.
-    export MOCK_PODMAN_RESTART=enabled
-    [[ $sc == openclaw_always ]] && export MOCK_LEGACY_POLICY=always
-  fi
-  # Both of these arrive from 127.0.0.1 (tailscaled runs --tun=userspace-networking, so it
-  # re-dials sshd over loopback just like cloudflared does): only the carrier tells them apart.
-  [[ $sc == tunnel_session ]] && export SSH_CONNECTION="127.0.0.1 50642 127.0.0.1 22" MOCK_SSH_CARRIER=cloudflared
-  [[ $sc == tailnet_session ]] && export SSH_CONNECTION="127.0.0.1 55996 127.0.0.1 22" MOCK_SSH_CARRIER=tailscaled
-  pf=$(bash "$R/scripts/migrate-legacy.sh" preflight "${pf_args[@]}" 2>&1)
-  RUN=$(sed -n 's/^preflight OK. RUN=//p' <<<"$pf")
-  grep -E "rollback shape:|rollback copy:" <<<"$pf" | sed "s/^ *//;s/^/  /"
-  if [[ -z $RUN ]]; then
-    echo "  preflight refused"
-    grep -E 'FAIL|problem|ERROR' <<<"$pf" | head -n 4 | sed 's/^/    /'
-    exit 0
-  fi
-  # the legacy tunnel dies between preflight and swap
-  [[ $sc == legacy_unhealthy ]] && echo 0 >"$MOCK_STATE/legacy_active"
-  script=$RUN/bin/migrate-legacy.sh
-else
-  # ---- upgrade -------------------------------------------------------------------------------
-  env_file
-  bash "$R/scripts/install.sh" --allow-dirty >/dev/null 2>&1 || { echo "  setup install failed"; exit 1; }
-  echo 10 >"$MOCK_STATE/new_ready_calls" # the pre-upgrade tunnel is warmed up
-  old_image=$(image_ref)
-  [[ $sc != noop ]] && new_commit "upgrade-$sc"
-  new_image=$(image_ref)
-  if [[ $sc == bad_image ]]; then
-    MOCK_BAD_IMAGE=$(image_ref)
-    export MOCK_BAD_IMAGE
-  fi
-  up=$(bash "$R/scripts/upgrade.sh" --prepare-only 2>&1)
-  RUN=$(sed -n 's/^upgrade: RUN=//p' <<<"$up")
-  if [[ -z $RUN ]]; then
-    echo "  no upgrade run started (old=$old_image)"
-    grep -E 'up to date|ERROR|FAIL' <<<"$up" | head -n 4 | sed 's/^/    /'
-    exit 0
-  fi
-  script=$RUN/bin/upgrade.sh
+env_file
+bash "$R/scripts/install.sh" --allow-dirty >/dev/null 2>&1 || { echo "  setup install failed"; exit 1; }
+echo 10 >"$MOCK_STATE/new_ready_calls" # the pre-upgrade tunnel is warmed up
+old_image=$(image_ref)
+if ((ports)); then
+  set_env UVICORN_PORT 18101
+  set_env CF_METRICS_ADDR 127.0.0.1:20342
 fi
+[[ $sc != noop ]] && new_commit "upgrade-$sc"
+new_image=$(image_ref)
+# from here on, the new build is the one that misbehaves (MOCK_SCENARIO)
+[[ $sc != noop ]] && export MOCK_NEW_IMAGE=$new_image
+if [[ $sc == bad_image ]]; then
+  MOCK_BAD_IMAGE=$(image_ref)
+  export MOCK_BAD_IMAGE
+fi
+up=$(bash "$R/scripts/upgrade.sh" --prepare-only 2>&1)
+RUN=$(sed -n 's/^upgrade: RUN=//p' <<<"$up")
+if [[ -z $RUN ]]; then
+  echo "  no upgrade run started (old=$old_image)"
+  grep -E 'up to date|ERROR|FAIL' <<<"$up" | head -n 4 | sed 's/^/    /'
+  if ((woow)); then
+    if out=$(woow_untouched); then echo "  woow=untouched"; else echo "  woow=TOUCHED"; printf '%s\n' "$out"; fi
+  fi
+  exit 0
+fi
+script=$RUN/bin/upgrade.sh
 
 case $mode in
   direct) bash "$script" __watchdog "$RUN" >>"$RUN/direct.log" 2>&1 ;;
   swap)
-    bash "$R/scripts/$([[ $kind == migrate ]] && echo migrate-legacy.sh || echo upgrade.sh)" swap "$RUN" >/dev/null 2>&1
+    bash "$R/scripts/upgrade.sh" swap "$RUN" >/dev/null 2>&1
     wait_pid "$(cat "$MOCK_STATE/detached.pid")" ;;
   postcommit_rollback)
     bash "$script" __watchdog "$RUN" >>"$RUN/direct.log" 2>&1
     echo "  (watchdog result: $(cat "$RUN/RESULT"))"
-    bash "$R/scripts/$([[ $kind == migrate ]] && echo migrate-legacy.sh || echo upgrade.sh)" --rollback "$RUN" >>"$RUN/direct.log" 2>&1 ;;
+    bash "$R/scripts/upgrade.sh" --rollback "$RUN" >>"$RUN/direct.log" 2>&1 ;;
   sigterm | abort | soak_restart | soak_lost)
     bash "$script" __watchdog "$RUN" >>"$RUN/direct.log" 2>&1 &
     pid=$!
@@ -145,7 +131,7 @@ case $mode in
     wait_phase "$want" "$RUN" || echo "  never reached phase $want"
     case $mode in
       sigterm) kill -TERM "$pid" ;;
-      abort) bash "$R/scripts/$([[ $kind == migrate ]] && echo migrate-legacy.sh || echo upgrade.sh)" abort "$RUN" >/dev/null ;;
+      abort) bash "$R/scripts/upgrade.sh" abort "$RUN" >/dev/null ;;
       soak_restart) echo 1 >"$MOCK_STATE/new_nrestarts" ;;
       soak_lost) touch "$MOCK_STATE/soaking" ;;
     esac

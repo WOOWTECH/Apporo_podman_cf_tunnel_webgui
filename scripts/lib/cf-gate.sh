@@ -1,24 +1,37 @@
 # shellcheck shell=bash
-# scripts/lib/cf-gate.sh: the swap watchdog shared by scripts/migrate-legacy.sh and
-# scripts/upgrade.sh. Repo-specific; the vendored shared lib is quadlet-lib.sh.
+# scripts/lib/cf-gate.sh: the swap watchdog of scripts/upgrade.sh, and the access-path guard
+# it shares with scripts/uninstall.sh and scripts/restore.sh. Repo-specific; the vendored
+# shared lib is quadlet-lib.sh.
 #
-# Both scripts prepare a RUN dir in the foreground (checks, backup, baseline), then hand
-# the risky part to a detached `systemd-run --user` watchdog. The watchdog runs a frozen
-# copy of the scripts from $RUN/bin, so a checkout change mid-run cannot affect it:
-#   swap (script-specific) -> gate -> soak -> commit
+# upgrade.sh prepares a RUN dir in the foreground (checks, backup, baseline), then hands the
+# risky part to a detached `systemd-run --user` watchdog. The watchdog runs a frozen copy of
+# the scripts from $RUN/bin, so a checkout change mid-run cannot affect it:
+#   swap (install + restart) -> gate -> soak -> commit
 # Any failure, timeout, signal or crash before "committed" calls the script's rollback.
 #
 # The tunnel token is never read or printed: only hostnames, HTTP codes and counters.
 # Settings (the foreground records them in $RUN/run.env for the watchdog):
-#   NEW_UNIT NEW_CONTAINER GUI_PORT METRICS_ADDR EXPECT_CONNS GATE_TIMEOUT SOAK_SECONDS
-#   POLL SOAK_POLL CURL_PUBLIC_TIMEOUT EXTRA_UNITS HTTP_OVERRIDES
+#   NEW_UNIT NEW_CONTAINER  this app's unit and container. Fixed here, never taken from the
+#                           environment: restore.sh, uninstall.sh --purge and the watchdog
+#                           stop, start, gate and soak on them, so a value inherited from a
+#                           shell set up for WOOW's GUI (woow-cf-tunnel) would point all of
+#                           that at WOOW's tunnel. upgrade.sh refuses a run.env that names
+#                           any other unit or container.
+#   GUI_PORT METRICS_ADDR EXPECT_CONNS GATE_TIMEOUT SOAK_SECONDS POLL SOAK_POLL
+#   CURL_PUBLIC_TIMEOUT EXTRA_UNITS HTTP_OVERRIDES CF_STATE_ROOT
+#                           defaults the environment may override (upgrade.sh takes the
+#                           ports and EXTRA_UNITS from the units it renders and installed)
+#
+# Every default names this app only (apporo-cf-tunnel, 127.0.0.1:18100 and :20341,
+# ~/.local/state/apporo-cf-tunnel). Nothing here stops, restarts or changes a WOOW Cloudflare
+# Tunnel Web GUI running on the same host.
 
 # shellcheck disable=SC2034 # used by the scripts that source this file
-CF_APP=woow-cf-tunnel
-: "${NEW_UNIT:=woow-cf-tunnel.service}"
-: "${NEW_CONTAINER:=woow-cf-tunnel}"
-: "${GUI_PORT:=18000}"
-: "${METRICS_ADDR:=127.0.0.1:20241}"
+CF_APP=apporo-cf-tunnel
+NEW_UNIT=apporo-cf-tunnel.service
+NEW_CONTAINER=apporo-cf-tunnel
+: "${GUI_PORT:=18100}"
+: "${METRICS_ADDR:=127.0.0.1:20341}"
 : "${EXPECT_CONNS:=4}"
 : "${GATE_TIMEOUT:=180}"
 : "${SOAK_SECONDS:=600}"
@@ -27,9 +40,8 @@ CF_APP=woow-cf-tunnel
 : "${CURL_PUBLIC_TIMEOUT:=15}"
 : "${EXTRA_UNITS:=}"
 : "${HTTP_OVERRIDES:=}"
-: "${CF_STATE_ROOT:=$HOME/.local/state/woow-cf-tunnel}"
-: "${CF_BACKUP_ROOT:=$HOME/backups}"
-CF_RUN_VARS="NEW_UNIT NEW_CONTAINER GUI_PORT METRICS_ADDR EXPECT_CONNS GATE_TIMEOUT SOAK_SECONDS POLL SOAK_POLL CURL_PUBLIC_TIMEOUT EXTRA_UNITS HTTP_OVERRIDES CF_STATE_ROOT CF_BACKUP_ROOT"
+: "${CF_STATE_ROOT:=$HOME/.local/state/apporo-cf-tunnel}"
+CF_RUN_VARS="NEW_UNIT NEW_CONTAINER GUI_PORT METRICS_ADDR EXPECT_CONNS GATE_TIMEOUT SOAK_SECONDS POLL SOAK_POLL CURL_PUBLIC_TIMEOUT EXTRA_UNITS HTTP_OVERRIDES CF_STATE_ROOT"
 
 # ---- logging: stdout (the journal of the transient unit) + $CF_LOG -------------------------
 CF_LOG=''
@@ -96,161 +108,8 @@ cf_nrestarts() {
   n=$(systemctl --user show -p NRestarts --value "$1" 2>/dev/null)
   printf '%s' "${n:-0}"
 }
-cf_port_busy() { [[ -n $(ss -ltnH "( sport = :$1 )" 2>/dev/null) ]]; }
 cf_health() { podman inspect -f '{{.State.Health.Status}}' "$NEW_CONTAINER" 2>/dev/null; }
 
-# ---- is there really a second way in? --------------------------------------------------------
-# The swap drops and re-establishes the tunnel that carries this host's ONLY published SSH
-# path, so preflight demands a rescue path. It used to demand only that RESCUE_CONTAINER is
-# `running`, which is not a rescue path: woowtechopenclaw's woow-tailscale-gateway is running
-# and serves TCP 18081/443/8443/9443/9444 - :22 is NOT among them - and because tailscaled
-# runs with TS_USERSPACE_NETWORKING the tailnet IP cannot reach a host port that is not
-# served. Setting RESCUE_CONTAINER to that gateway therefore turned the check green while the
-# host had no second way in at all. So the proof is the serve configuration, not the state.
-
-# cf_json_tcp_ports: stdin = `tailscale serve status --json`, stdout = its TCP ports, one per
-# line, numerically sorted. Empty (and status 1) when the input is not that JSON.
-cf_json_tcp_ports() {
-  python3 -c 'import json,sys
-try:
-    d = json.load(sys.stdin)
-except Exception:
-    sys.exit(1)
-if not isinstance(d, dict):
-    sys.exit(1)
-tcp = d.get("TCP") or {}
-try:
-    ports = sorted(int(p) for p in tcp)
-except Exception:
-    sys.exit(1)
-for p in ports:
-    print(p)'
-}
-
-# cf_serve_tcp_ports <container>: the TCP ports that container serves on the tailnet.
-cf_serve_tcp_ports() {
-  podman exec "$1" sh -c 'tailscale serve status --json 2>/dev/null' 2>/dev/null | cf_json_tcp_ports
-}
-
-# cf_shields_up <container>: "true"/"false" from that node's prefs, empty if unreadable.
-# ShieldsUp is the switch that drops ALL inbound tailnet connections; with it off, a node accepts
-# them and hands them to the host.
-cf_shields_up() {
-  podman exec "$1" sh -c 'tailscale debug prefs 2>/dev/null' 2>/dev/null | python3 -c 'import json,sys
-try:
-    d = json.load(sys.stdin)
-except Exception:
-    sys.exit(1)
-v = d.get("ShieldsUp")
-print("true" if v is True else "false" if v is False else "")'
-}
-
-# cf_host_ssh_listener: the first local address sshd listens on, empty if nothing does. Read on
-# the HOST, not in a container - the tailnet node hands the connection to the host's own stack.
-cf_host_ssh_listener() {
-  ss -lntH 'sport = :22' 2>/dev/null | awk '{print $4}' | head -1
-}
-
-# cf_rescue_ssh_ok <container>: true when :22 on that node's tailnet address really reaches this
-# host's sshd. Explains what it saw on stdout when it cannot show that.
-#
-# There are TWO ways that is true, and an earlier version of this function knew only the first,
-# which made it refuse a path that demonstrably works:
-#
-#   1. an explicit `tailscale serve --tcp 22` rule, or
-#   2. nothing at all - because a tailnet node hands an inbound connection for port N to the host
-#      on port N whenever ShieldsUp is off. That is true in BOTH networking modes: with a TUN
-#      interface the tailnet IP is on the host's own stack, and in userspace mode tailscaled
-#      dials localhost:N itself. `serve` exists to publish a port under TLS or to remap it, not
-#      to make an already-listening host port reachable.
-#
-# The old text asserted the opposite ("with userspace networking the tailnet IP cannot reach an
-# unserved host port"). It is wrong: on woowtechopenclaw both tailnet nodes are userspace-mode
-# with no `:22` serve rule, and ssh to either node's tailnet IP reaches the host's sshd.
-#
-# What this still CANNOT see is the tailnet ACL, which can deny :22 no matter what the node does.
-# So case 2 is strong evidence, not proof, and it says so. The only proof is a login you have
-# actually made - which is what RESCUE_PROOF=lan|console are for.
-cf_rescue_ssh_ok() {
-  local c=$1 ports shields listener
-  ports=$(cf_serve_tcp_ports "$c") || {
-    echo "        could not read \`tailscale serve status --json\` in $c: this is not a demonstrated rescue path"
-    return 1
-  }
-  if [[ -n $ports ]] && grep -qx 22 <<<"$ports"; then
-    echo "        $c serves TCP :22 explicitly"
-    return 0
-  fi
-
-  shields=$(cf_shields_up "$c")
-  listener=$(cf_host_ssh_listener)
-  if [[ $shields == false && -n $listener ]]; then
-    echo "        $c serves TCP ${ports:-<none>} - no :22 rule, and none is needed: ShieldsUp is off"
-    echo "        and this host's sshd listens on $listener, so the node hands an inbound :22 to it."
-    echo "        NOTE this does not prove the tailnet ACL permits :22 - confirm with a real login"
-    echo "        over that node before relying on it."
-    return 0
-  fi
-
-  echo "        $c serves TCP ${ports:-<none>} - :22 is not served, and the fallback path is not demonstrable either:"
-  [[ $shields == true ]] && echo "          ShieldsUp is ON, so this node drops all inbound tailnet connections"
-  [[ -z $shields ]] && echo "          could not read ShieldsUp from this node's prefs"
-  [[ -z $listener ]] && echo "          nothing on this host is listening on :22"
-  echo "        Fix it (tailscale serve --bg --tcp 22 tcp://localhost:22, or turn ShieldsUp off, or"
-  echo "        start sshd) or, if you have a LAN route or a physical console, re-run with"
-  echo "        RESCUE_PROOF=lan / RESCUE_PROOF=console."
-  return 1
-}
-
-# ---- what the legacy deployment actually looks like -------------------------------------------
-# openclaw's unit is `podman-cf-tunnel-webgui.service`, not `cf-tunnel-webgui.service`, and its
-# uvicorn is `--host 0.0.0.0 --port 8888`, not the repo's 18000. Preflight refused on all three
-# - correctly - but with messages that read as "the service is broken". These name the real
-# values instead.
-
-# cf_units_mentioning <container>: user units whose Exec* lines name that container.
-cf_units_mentioning() {
-  local d=${CF_USER_UNIT_DIR:-$HOME/.config/systemd/user} f
-  [[ -d $d ]] || return 0
-  for f in "$d"/*.service; do
-    [[ -f $f ]] || continue
-    if grep -qE "^[[:space:]]*Exec[A-Za-z]*=.*[[:space:]]$1([[:space:]]|\$)" "$f"; then
-      printf '%s\n' "${f##*/}"
-    fi
-  done
-  return 0
-}
-
-# cf_uvicorn_args_parse: stdin = one command-line token per line, stdout = "<host>|<port>"
-# for the first `--host` / `--port` it finds (either spelling: `--port 8888` or `--port=8888`).
-# Missing values come back empty, so a caller can tell "not found" from "found 0.0.0.0".
-cf_uvicorn_args_parse() {
-  local tok host='' port='' want=''
-  # `|| [[ -n $tok ]]`: a token stream whose last line is not newline-terminated must not
-  # lose that token - which is exactly where a --port ends up.
-  while IFS= read -r tok || [[ -n $tok ]]; do
-    case $want in
-      host) host=$tok; want='' ; continue ;;
-      port) port=$tok; want='' ; continue ;;
-    esac
-    case $tok in
-      --host) want=host ;;
-      --port) want=port ;;
-      --host=*) host=${tok#--host=} ;;
-      --port=*) port=${tok#--port=} ;;
-    esac
-  done
-  printf '%s|%s\n' "$host" "$port"
-}
-
-# cf_legacy_uvicorn <container>: "<host>|<port>" the legacy container's uvicorn really uses,
-# read from its command and, failing that, from the CreateCommand podman recorded.
-cf_legacy_uvicorn() {
-  local c=$1 out
-  out=$(podman inspect -f '{{range .Config.Cmd}}{{println .}}{{end}}' "$c" 2>/dev/null | cf_uvicorn_args_parse)
-  [[ $out != '|' ]] && { printf '%s\n' "$out"; return 0; }
-  podman inspect -f '{{range .Config.CreateCommand}}{{println .}}{{end}}' "$c" 2>/dev/null | cf_uvicorn_args_parse
-}
 # ---- which remote-access path is this session on? --------------------------------------------
 # The client address in SSH_CONNECTION does NOT tell the two paths apart. tailscaled runs with
 # --tun=userspace-networking on these hosts, so it terminates the tailnet connection itself and
@@ -261,9 +120,11 @@ cf_legacy_uvicorn() {
 # so the carrier process names the path, and `ss -tnpH "sport = :<client_port>"` finds it.
 : "${CF_PROC:=/proc}"
 # A carrier is the tunnel when its process name, argv[0], cgroup (Quadlet unit) or podman
-# container name matches this: cloudflared itself, the Quadlet unit/container woow-cf-tunnel,
-# or the legacy cf-tunnel-webgui container it runs in here.
-: "${CF_CARRIER_TUNNEL_RE:=cloudflared|cf-tunnel|woow-cf-tunnel}"
+# container name matches this: cloudflared itself, or the Quadlet unit/container
+# apporo-cf-tunnel it runs in. A connector of WOOW's GUI on the same host (woow-cf-tunnel,
+# cf-tunnel-webgui) matches too, on purpose: a carrier's name does not say which tunnel it
+# serves, and treating it as ours only costs --force. Nothing else is done with it.
+: "${CF_CARRIER_TUNNEL_RE:=cloudflared|cf-tunnel|apporo-cf-tunnel}"
 # Carriers that only front another process (rootless podman port shims): never conclusive.
 : "${CF_CARRIER_OPAQUE_RE:=^(pasta|passt|slirp4netns|rootlessport|conmon|podman)$}"
 # shellcheck disable=SC2034 # CF_SESSION_PATH/WHY are read by the scripts that source this file
@@ -550,12 +411,13 @@ cf_write_run_env() {
   for v in $CF_RUN_VARS "$@"; do printf '%s=%q\n' "$v" "${!v-}"; done >"$run/run.env"
   chmod 600 "$run/run.env"
 }
-# cf_freeze <run> <script>: the watchdog runs this copy (and these libs), not the checkout
+# cf_freeze <run> <script>: the watchdog runs this copy (and these libs, and the WOOW guards
+# of render-args.sh beside it), not the checkout
 cf_freeze() {
   local run=$1 script=$2 dir
   dir=$(cd "$(dirname "$script")" && pwd -P)
   mkdir -p "$run/bin/lib"
-  cp -p "$script" "$run/bin/"
+  cp -p "$script" "$dir/render-args.sh" "$run/bin/"
   cp -p "$dir/lib/quadlet-lib.sh" "$dir/lib/cf-gate.sh" "$run/bin/lib/"
   chmod 700 "$run/bin" "$run/bin/${script##*/}"
 }
@@ -577,65 +439,4 @@ cf_status() {
   echo "phase:  $(cat "$run/PHASE" 2>/dev/null || echo '<not started>')"
   echo "result: $(cat "$run/RESULT" 2>/dev/null || echo '<running or not started>')"
   tail -n 25 "$run/watchdog.log" 2>/dev/null
-}
-
-# ---- the legacy rollback model (STANDARD 7a; quadlet-lib >= 1.4.0) -------------------------
-# The swap does not rename the legacy container: the new Quadlet container has a different
-# name, so it simply leaves the legacy one stopped, with its unit disabled but kept. That is
-# a rollback path only while nothing starts the container again. The user unit
-# podman-restart.service runs `podman start --all --filter restart-policy=always` at boot, so
-# where it is enabled and the legacy container's policy is exactly `always`, a reboot brings
-# a second cloudflared up on the same tunnel token, the same `/data` volume and the same host
-# ports (the legacy container is --network=host) next to the Quadlet one. podman 4.9.3 cannot
-# change a restart policy afterwards, so there the container is captured and removed instead,
-# and the rollback recreates it before it starts the legacy unit. ql_rollback_strategy asks
-# this host's real state, never its name.
-
-# cf_legacy_capture <backup dir> <container>: write the rollback copy. Read-only towards the
-# container, so preflight runs it while the legacy tunnel still serves: a container the
-# library cannot replay (an empty CreateCommand - created through the podman API rather than
-# the CLI) is refused there, not in the middle of the swap. No --commit: the GUI keeps its
-# settings, its tunnel token and its credentials in the /data volume, and the live container's
-# writable layer is __pycache__ only.
-cf_legacy_capture() {
-  local bk=${1:?usage: cf_legacy_capture <backup dir> <container>} c=${2:?} meta
-  meta=$bk/legacy-container/$c/meta
-  if [[ -f $meta ]]; then
-    ql_info "the rollback copy of $c is already in $bk/legacy-container/$c"
-  else
-    ql_capture_container "$c" "$bk" >/dev/null
-  fi
-  [[ $(sed -n 's/^RECREATABLE=//p' "$meta" | tail -n1) == 1 ]] || ql_die \
-    "$c was created through the podman API, not the CLI, so its create command cannot be replayed and a capture-based rollback is impossible. Either disable podman-restart.service (then the legacy container can simply be left stopped) or plan to rebuild $c by hand from $bk/legacy-container/$c/inspect.json"
-}
-
-# cf_legacy_remove <backup dir> <container>: the capture path's half of the swap. Returns 1
-# rather than dying, because inside the watchdog a failure has to roll back.
-cf_legacy_remove() {
-  local bk=${1:?} c=${2:?}
-  if [[ ! -f $bk/legacy-container/$c/meta ]]; then
-    cf_log "no rollback copy of $c in $bk; refusing to remove it"
-    return 1
-  fi
-  # A plain rm on purpose: `podman rm -v` would delete the anonymous volumes the capture
-  # records and expects to find again.
-  podman rm "$c" >/dev/null 2>&1 || { cf_log "podman rm $c failed"; return 1; }
-  cf_log "removed the legacy container $c; the rollback recreates it from $bk/legacy-container/$c"
-}
-
-# cf_legacy_restore <backup dir> <container>: make sure the legacy container exists again
-# before its unit is started. A no-op on the path that only left it stopped.
-cf_legacy_restore() {
-  local bk=${1:-} c=${2:?}
-  if podman container exists "$c" >/dev/null 2>&1; then return 0; fi
-  if [[ -n $bk && -f $bk/legacy-container/$c/meta ]]; then
-    if ql_recreate_container "$bk" "$c" >/dev/null; then
-      cf_log "recreated $c from $bk/legacy-container/$c (stopped, with its original restart policy)"
-      return 0
-    fi
-    cf_log "could not recreate $c from $bk/legacy-container/$c; $LEGACY_UNIT will fail to start"
-    return 1
-  fi
-  cf_log "the legacy container $c does not exist and there is no rollback copy in ${bk:-<none>}"
-  return 1
 }

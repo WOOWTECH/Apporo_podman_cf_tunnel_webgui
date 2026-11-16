@@ -1,0 +1,17 @@
+# /data for apporo-cf-tunnel: settings.json, .tunnel_token (0600), the platform link state,
+# .csrf_secret, and in local-managed mode cert.pem / tunnel.json / config.json.
+#
+# VolumeName= gives the volume a fixed name (CF_DATA_VOLUME in the env file, default
+# apporo_cf_data). "podman volume create --ignore" leaves an existing one untouched, so a
+# reinstall after an uninstall without --purge comes back with its tunnel configured.
+# Without it, Quadlet would name the volume systemd-apporo-cf-tunnel-data.
+#
+# It is never a volume of WOOW's Cloudflare Tunnel Web GUI: scripts/install.sh refuses its
+# names (cf_data, <project>_cf_data, woow*, cf-tunnel-webgui*) and any existing volume that
+# podman says is another app's (by its labels, or a container that mounts it), because two
+# connectors on one /data would run one tunnel token. The label is applied only when the
+# volume is created.
+
+[Volume]
+VolumeName=@@CF_DATA_VOLUME@@
+Label=io.woowtech.app=apporo-cf-tunnel

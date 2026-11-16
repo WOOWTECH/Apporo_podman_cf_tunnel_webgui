@@ -113,19 +113,19 @@ proc 3602652 tailscaled /usr/sbin/tailscaled '0::/user.slice/user-1000.slice/use
 export MOCK_CTR_NAME='cb0aa3b48c3c968a5a721afae5b17c8edcaa454691628902ca4f429dd861625a:woow-tailscale'
 case_ tailscaled-carrier no other
 
-# 3. a carrier whose name says nothing, but which lives in the cf-tunnel-webgui container
+# 3. a carrier whose name says nothing, but which lives in the apporo-cf-tunnel container
 reset_stubs
 export SSH_CONNECTION="127.0.0.1 50700 127.0.0.1 22"
 ss_says 'ESTAB 0      0      127.0.0.1:50700 127.0.0.1:22 users:(("cf-proxy-wrapper",pid=4242,fd=9))'
 proc 4242 cf-proxy-wrapper /usr/bin/wrapper '0::/user.slice/user-1000.slice/user@1000.service/user.slice/libpod-b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1.scope/container'
-export MOCK_CTR_NAME='b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1:cf-tunnel-webgui'
+export MOCK_CTR_NAME='b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1:apporo-cf-tunnel'
 case_ carrier-in-cf-container rides tunnel
 
 # 4. a Quadlet carrier is named by its cgroup even when comm and the container name are not read
 reset_stubs
 export SSH_CONNECTION="::1 50701 ::1 22"
 ss_says 'ESTAB 0      0      [::1]:50701 [::1]:22 users:(("catatonit",pid=4243,fd=9))'
-proc 4243 catatonit /usr/bin/catatonit '0::/user.slice/user-1000.slice/user@1000.service/app.slice/woow-cf-tunnel.service/container'
+proc 4243 catatonit /usr/bin/catatonit '0::/user.slice/user-1000.slice/user@1000.service/app.slice/apporo-cf-tunnel.service/container'
 case_ carrier-in-cf-quadlet-unit rides tunnel
 
 # 5. a rootless podman port shim could be fronting cloudflared: undeterminable -> assume yes
@@ -190,6 +190,16 @@ reset_stubs
 export SSH_CONNECTION="127.0.0.1"
 ss_says 'ESTAB 0      0      127.0.0.1:1 127.0.0.1:22 users:(("tailscaled",pid=1,fd=1))'
 case_ malformed-ssh-connection rides unknown
+
+# 14. WOOW's GUI may run its own connector on this host. A carrier in its container cannot be
+# told apart from ours by name, so the guard errs to "rides the tunnel" (a wrong yes only
+# costs --force); it only reads the process, it never acts on it.
+reset_stubs
+export SSH_CONNECTION="127.0.0.1 50707 127.0.0.1 22"
+ss_says 'ESTAB 0      0      127.0.0.1:50707 127.0.0.1:22 users:(("cf-proxy-wrapper",pid=4247,fd=9))'
+proc 4247 cf-proxy-wrapper /usr/bin/wrapper '0::/user.slice/user-1000.slice/user@1000.service/user.slice/libpod-c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2.scope/container'
+export MOCK_CTR_NAME='c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2:woow-cf-tunnel'
+case_ carrier-in-a-woow-container-counts-as-the-tunnel rides tunnel
 
 if ((fails == 0)); then
   echo "cf-gate-session: $ran case(s) passed"

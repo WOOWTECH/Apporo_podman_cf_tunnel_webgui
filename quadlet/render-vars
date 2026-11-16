@@ -1,6 +1,6 @@
 # Variables scripts/install.sh renders into quadlet/*, quadlet/optional/* and
 # config/auth/auth-nginx.conf (decision D2: rendered once, at install time).
-# Values come from ~/.config/woow-cf-tunnel/woow-cf-tunnel.env, except CF_IMAGE,
+# Values come from ~/.config/apporo-cf-tunnel/apporo-cf-tunnel.env, except CF_IMAGE,
 # which scripts/render-args.sh computes from VERSION and the git commit.
 CF_IMAGE
 CF_DATA_VOLUME

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # scripts/upgrade.sh: apply repo changes (a new VERSION or commit, a new cloudflared, edited
-# settings) to a running woow-cf-tunnel, with a gate and an automatic rollback.
+# settings) to a running apporo-cf-tunnel, with a gate and an automatic rollback.
 #
 # RESTARTING THE TUNNEL DROPS IT FOR ~20-40s, and it may carry your SSH session. The swap
 # therefore runs in a detached `systemd-run --user` watchdog: it finishes, or rolls back to
@@ -21,6 +21,7 @@
 # Upgrading = change the repo (bump VERSION, the pinned cloudflared version, the units),
 # commit, then run this. A checkout with uncommitted changes is refused: its image tag
 # would not identify what is running. Use --image to redeploy an earlier local build.
+# RUN is one of ours, ~/.local/state/apporo-cf-tunnel/upgrade-*, never a run of WOOW's GUI.
 # shellcheck source-path=SCRIPTDIR
 set -uo pipefail
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
@@ -29,28 +30,71 @@ HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
 _env_expect=${EXPECT_CONNS:-}
 # shellcheck source=lib/cf-gate.sh
 . "$HERE/lib/cf-gate.sh"
+# shellcheck source=render-args.sh
+. "$HERE/render-args.sh"
 export QL_LOG_PREFIX=upgrade QL_APP=$CF_APP
+# CF_STATE_ROOT can come from the environment. WOOW's GUI keeps its upgrade runs in a state
+# directory of its own; none of them is ours to create, start, commit, abort or roll back.
+if cf_foreign_path "$CF_STATE_ROOT"; then
+  ql_die "CF_STATE_ROOT=$CF_STATE_ROOT is the state directory of WOOW's Cloudflare Tunnel Web GUI; this package never acts on its runs (unset CF_STATE_ROOT)"
+fi
 
 QUADLET_DIR=${QL_QUADLET_DIR:-$HOME/.config/containers/systemd}
 CONF_DIR=$HOME/.config/$CF_APP
 ENV_FILE=$CONF_DIR/$CF_APP.env
-AUTH_UNIT=woow-cf-tunnel-auth.service
+AUTH_UNIT=apporo-cf-tunnel-auth.service
 RESTORE_TIMEOUT=${RESTORE_TIMEOUT:-180}
 PREFIX=upgrade
-QUADLET_NAMES=(woow-cf-tunnel.container woow-cf-tunnel-data.volume woow-cf-tunnel-auth.container)
+QUADLET_NAMES=(apporo-cf-tunnel.container apporo-cf-tunnel-data.volume apporo-cf-tunnel-auth.container)
 CONFIG_NAMES=(auth-nginx.conf)
 
-usage() { sed -n '2,25p' "$0"; exit 64; }
+usage() { sed -n '2,24p' "$0"; exit 64; }
+# own_run <dir>: is it one of our runs, $CF_STATE_ROOT/$PREFIX-*? Prints its physical path.
+own_run() {
+  local r root
+  r=$(cd "$1" 2>/dev/null && pwd -P) || return 1
+  root=$(cd "$CF_STATE_ROOT" 2>/dev/null && pwd -P) || return 1
+  if cf_foreign_path "$r" || [[ ${r%/*} != "$root" || ${r##*/} != "$PREFIX"-* ]]; then return 1; fi
+  printf '%s' "$r"
+}
+# run_arg [RUN]: RUN, or the newest run. Only a run of ours: what the subcommands do to a run
+# (ROLLBACK and COMMIT files, a watchdog, sourcing its run.env) would otherwise reach a run
+# dir of another app, such as WOOW's GUI.
 run_arg() {
   local r=${1:-}
   [[ -n $r ]] || r=$(cf_latest_run "$PREFIX")
   [[ -n $r && -d $r ]] || ql_die "no upgrade run found; run: $0"
-  printf '%s' "$(cd "$r" && pwd -P)"
+  own_run "$r" || ql_die "$r is not an apporo-cf-tunnel upgrade run (those are $CF_STATE_ROOT/$PREFIX-*); nothing was changed"
+}
+# run_env_ours: does the run.env just sourced name this app only? Our prepare step records
+# NEW_UNIT and NEW_CONTAINER as cf-gate.sh fixes them, and UNITS / PREV_UNITS / EXTRA_UNITS
+# from them. Anything else (an edited run.env, or one recorded with WOOW's names) would have
+# the watchdog or a rollback restart, gate and soak on a unit that is not ours.
+run_env_ours() {
+  local u
+  [[ ${NEW_UNIT-} == apporo-cf-tunnel.service && ${NEW_CONTAINER-} == apporo-cf-tunnel ]] || return 1
+  for u in ${UNITS-} ${PREV_UNITS-} ${EXTRA_UNITS-}; do
+    [[ $u == apporo-cf-tunnel.service || $u == "$AUTH_UNIT" ]] || return 1
+  done
+  return 0
+}
+# not_ours_msg <run>: why run_env_ours refused that run's run.env
+not_ours_msg() {
+  printf '%s/run.env names unit(s) or a container that are not this app'\''s (NEW_UNIT=%s NEW_CONTAINER=%s UNITS=[%s] PREV_UNITS=[%s] EXTRA_UNITS=[%s]; this app has only apporo-cf-tunnel.service, %s and the container apporo-cf-tunnel)' \
+    "$1" "${NEW_UNIT-}" "${NEW_CONTAINER-}" "${UNITS-}" "${PREV_UNITS-}" "${EXTRA_UNITS-}" "$AUTH_UNIT"
+}
+# check_run_env <run> <what did not happen>: die unless <run>/run.env names this app only.
+# Sourced in a subshell, so the caller's settings stay as they are.
+check_run_env() {
+  local msg
+  # shellcheck source=/dev/null
+  msg=$(. "$1/run.env" && { run_env_ours || not_ours_msg "$1"; }) || msg="cannot read $1/run.env"
+  [[ -z $msg ]] || ql_die "$msg; $2"
 }
 units_of() { # units the set in <dir> installs, tunnel first
   local d=$1
   printf '%s' "$NEW_UNIT"
-  [[ -f $d/woow-cf-tunnel-auth.container ]] && printf ' %s' "$AUTH_UNIT"
+  [[ -f $d/apporo-cf-tunnel-auth.container ]] && printf ' %s' "$AUTH_UNIT"
 }
 
 # ---- prepare --------------------------------------------------------------------------------
@@ -71,7 +115,7 @@ cmd_prepare() {
   done
   ql_preflight 4.9
   ql_lock "$CF_APP"
-  [[ -f $QUADLET_DIR/woow-cf-tunnel.container ]] || ql_die "woow-cf-tunnel is not installed here; use scripts/install.sh"
+  [[ -f $QUADLET_DIR/apporo-cf-tunnel.container ]] || ql_die "apporo-cf-tunnel is not installed here; use scripts/install.sh"
   [[ -f $ENV_FILE ]] || ql_die "$ENV_FILE is missing; use scripts/install.sh"
 
   run=$(cf_new_run "$PREFIX") || ql_die "cannot create a run dir under $CF_STATE_ROOT"
@@ -104,20 +148,28 @@ cmd_prepare() {
   UNITS=$(units_of "$run/new")
   PREV_UNITS=$(units_of "$run/previous")
   EXTRA_UNITS=''
-  [[ -f $run/new/woow-cf-tunnel-auth.container ]] && EXTRA_UNITS=$AUTH_UNIT
-  GUI_PORT=$(sed -n 's/^Environment=UVICORN_PORT=//p' "$run/new/woow-cf-tunnel.container")
-  METRICS_ADDR=$(sed -n 's/^Environment=CF_METRICS_ADDR=//p' "$run/new/woow-cf-tunnel.container")
+  [[ -f $run/new/apporo-cf-tunnel-auth.container ]] && EXTRA_UNITS=$AUTH_UNIT
+  GUI_PORT=$(sed -n 's/^Environment=UVICORN_PORT=//p' "$run/new/apporo-cf-tunnel.container")
+  METRICS_ADDR=$(sed -n 's/^Environment=CF_METRICS_ADDR=//p' "$run/new/apporo-cf-tunnel.container")
+  # The tunnel that runs now listens where the installed unit says. The baseline reads it
+  # there, and so does a rollback, which brings that unit back; the gate reads the new ports.
+  PREV_GUI_PORT=$(sed -n 's/^Environment=UVICORN_PORT=//p' "$run/previous/apporo-cf-tunnel.container")
+  PREV_METRICS_ADDR=$(sed -n 's/^Environment=CF_METRICS_ADDR=//p' "$run/previous/apporo-cf-tunnel.container")
+  PREV_GUI_PORT=${PREV_GUI_PORT:-$GUI_PORT} PREV_METRICS_ADDR=${PREV_METRICS_ADDR:-$METRICS_ADDR}
 
   ql_info "3. backing up the data volume (the export CONTAINS THE TUNNEL TOKEN)"
   "$HERE/backup.sh" >/dev/null || ql_die "backup failed; nothing was changed"
 
   ql_info "4. baseline"
+  local new_metrics=$METRICS_ADDR
+  METRICS_ADDR=$PREV_METRICS_ADDR
   cf_baseline "$run" 0 || ql_die "the baseline is not usable; nothing was changed"
+  METRICS_ADDR=$new_metrics
   n=$(<"$run/ready_conns")
   if [[ -z $_env_expect ]] && ((n > 0)); then EXPECT_CONNS=$n; fi
 
-  cf_write_run_env "$run" QUADLET_DIR RESTORE_TIMEOUT UNITS PREV_UNITS \
-    BASELINE_TUNNEL BASELINE_VERSION BASELINE_INGRESS_SHA
+  cf_write_run_env "$run" QUADLET_DIR RESTORE_TIMEOUT UNITS PREV_UNITS PREV_GUI_PORT \
+    PREV_METRICS_ADDR BASELINE_TUNNEL BASELINE_VERSION BASELINE_INGRESS_SHA
   cf_freeze "$run" "$HERE/upgrade.sh"
   echo "upgrade: RUN=$run"
   ((prepare_only)) && return 0
@@ -129,12 +181,14 @@ cmd_prepare() {
 
 cmd_swap() {
   local run unit
-  run=$(run_arg "${1:-}")
+  run=$(run_arg "${1:-}") || exit 1
   [[ -s $run/run.env ]] || ql_die "$run has no run.env; run $0 --prepare-only first"
   [[ ! -e $run/PHASE ]] || ql_die "$run was already used (phase $(cat "$run/PHASE"))"
+  # what the watchdog will act on (it checks again before it changes anything)
+  check_run_env "$run" "no watchdog was started"
   if cf_session_rides_tunnel; then ql_warn "this session is treated as riding the tunnel and may drop during the restart ($CF_SESSION_WHY); the watchdog carries on"; fi
-  unit=woow-cf-tunnel-upgrade-${run##*/"$PREFIX"-}
-  cf_detach "$run" "$unit" upgrade.sh "woow-cf-tunnel upgrade watchdog" \
+  unit=apporo-cf-tunnel-upgrade-${run##*/"$PREFIX"-}
+  cf_detach "$run" "$unit" upgrade.sh "apporo-cf-tunnel upgrade watchdog" \
     || ql_die "systemd-run failed; nothing was changed"
   ql_info "watchdog started as $unit (gate ${GATE_TIMEOUT}s, soak ${SOAK_SECONDS}s); follow: journalctl --user -fu $unit"
 }
@@ -165,6 +219,8 @@ rollback() {
   cf_run ql_install_files "$RUN/previous" "$CF_APP" --prune || cf_log "restoring the previous unit files failed"
   # shellcheck disable=SC2086 # PREV_UNITS is a word list
   cf_run ql_apply_units "$CF_APP" $PREV_UNITS || cf_log "restarting the previous units failed"
+  # the previous units are back, on the ports they were installed with
+  GUI_PORT=${PREV_GUI_PORT:-$GUI_PORT} METRICS_ADDR=${PREV_METRICS_ADDR:-$METRICS_ADDR}
   deadline=$(($(date +%s) + RESTORE_TIMEOUT))
   while (($(date +%s) < deadline)); do
     if systemctl --user is-active --quiet "$NEW_UNIT" && cf_gui_ok "$GUI_PORT"; then
@@ -197,7 +253,15 @@ cmd_watchdog() {
   RUN=${1:?}
   # shellcheck source=/dev/null
   . "$RUN/run.env"
+  # Only one of our runs (CF_STATE_ROOT is the one recorded in run.env), and only this app's
+  # units: checked before the first write to $RUN or to any unit. A refused run of ours
+  # gets a RESULT, so a foreground `upgrade.sh` that follows it stops waiting and says why.
+  own_run "$RUN" >/dev/null || ql_die "$RUN is not an apporo-cf-tunnel upgrade run (those are $CF_STATE_ROOT/$PREFIX-*); the watchdog changed nothing"
   CF_LOG=$RUN/watchdog.log
+  if ! run_env_ours; then
+    cf_result "ABORTED_BEFORE_CHANGE ($(not_ours_msg "$RUN"); the watchdog changed nothing)"
+    exit 1
+  fi
   trap '' PIPE
   cf_phase pre
   trap 'on_exit $?' EXIT
@@ -218,11 +282,12 @@ cmd_watchdog() {
 }
 
 cmd_manual_rollback() {
-  RUN=$(run_arg "${1:-}")
+  RUN=$(run_arg "${1:-}") || exit 1
   # shellcheck source=/dev/null
   . "$RUN/run.env"
+  run_env_ours || ql_die "$(not_ours_msg "$RUN"); nothing was rolled back"
   CF_LOG=$RUN/watchdog.log
-  if systemctl --user is-active --quiet "woow-cf-tunnel-upgrade-${RUN##*/"$PREFIX"-}"; then
+  if systemctl --user is-active --quiet "apporo-cf-tunnel-upgrade-${RUN##*/"$PREFIX"-}"; then
     ql_die "the watchdog of $RUN is still running; ask it to roll back with: $0 abort $RUN"
   fi
   [[ -d $RUN/previous ]] || ql_die "$RUN has no previous/ snapshot"
@@ -235,9 +300,9 @@ case ${1:-} in
   -h | --help) usage ;;
   rollback | --rollback) shift; cmd_manual_rollback "${1:-}" ;;
   swap | --swap) shift; cmd_swap "${1:-}" ;;
-  status | --status) shift; cf_status "$(run_arg "${1:-}")" ;;
-  commit | --commit) shift; r=$(run_arg "${1:-}"); touch "$r/COMMIT"; echo "commit requested ($r)" ;;
-  abort | --abort) shift; r=$(run_arg "${1:-}"); touch "$r/ROLLBACK"; echo "rollback requested ($r)" ;;
+  status | --status) shift; r=$(run_arg "${1:-}") || exit 1; cf_status "$r" ;;
+  commit | --commit) shift; r=$(run_arg "${1:-}") || exit 1; touch "$r/COMMIT"; echo "commit requested ($r)" ;;
+  abort | --abort) shift; r=$(run_arg "${1:-}") || exit 1; touch "$r/ROLLBACK"; echo "rollback requested ($r)" ;;
   __watchdog) shift; cmd_watchdog "$@" ;;
   prepare) shift; cmd_prepare "$@" ;;
   '' | --*) cmd_prepare "$@" ;;

@@ -12,7 +12,7 @@
 # shape cloudflared does not produce -- hence this direct test.
 #
 # The fixtures below carry the full rule shape of a live connector (cloudflared 2026.6.1,
-# remote-managed config, read from http://127.0.0.1:20241/config): every rule has hostname,
+# remote-managed config, read from its metrics server's /config): every rule has hostname,
 # path, service, Handlers and originRequest, and only the hostnames are anonymised.
 #
 # Everything is driven by a curl stub on PATH, so this needs no tunnel and no network.
@@ -47,13 +47,15 @@ mkdir -p "$TMP/bin"
 PATH=$TMP/bin:$PATH
 
 # serves <body>: a curl that answers GET http://$METRICS_ADDR/config with this body, and
-# refuses anything else the way the real metrics server would for an unknown path.
+# refuses anything else the way the real metrics server would for an unknown path. The URL
+# is the default METRICS_ADDR, so this also pins it: 127.0.0.1:20341, not cloudflared's usual
+# 20241, which a WOOW connector on the same host may hold.
 serves() {
   printf '%s' "$1" >"$TMP/config.json"
   cat >"$TMP/bin/curl" <<'STUB'
 #!/usr/bin/env bash
 for a in "$@"; do case $a in http*) url=$a ;; esac; done
-[[ ${url:-} == "http://127.0.0.1:20241/config" ]] || exit 6
+[[ ${url:-} == "http://127.0.0.1:20341/config" ]] || exit 6
 cat "${CF_FIXTURE:?}"
 STUB
   chmod +x "$TMP/bin/curl"
@@ -169,7 +171,7 @@ zz.example.io http://localhost:1'
 
 # ---- 4. the sentinels cf_baseline depends on ----------------------------------------------
 # Both of these must be empty output AND exit 0: the callers run under `set -euo pipefail`,
-# where a non-zero here would kill the migration instead of producing a vacuous baseline that
+# where a non-zero here would kill the upgrade instead of producing a vacuous baseline that
 # cf_baseline then refuses with its own message.
 serves 'not json'
 check unparseable-body-is-empty ''

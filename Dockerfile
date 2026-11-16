@@ -1,5 +1,5 @@
-# Cloudflare Tunnel Web GUI: FastAPI + Vue, with cloudflared as a child process.
-# scripts/install.sh builds this as localhost/woow-cf-tunnel:<VERSION>-<git-sha12>
+# Apporo CF Tunnel Web: FastAPI + Vue GUI, with cloudflared as a child process.
+# scripts/install.sh builds this as localhost/apporo-cf-tunnel:<VERSION>-<git-sha12>
 # and the Quadlet unit runs it with Pull=never.
 
 # ── Stage 1: Build Vue frontend ──────────────────────────
@@ -62,9 +62,12 @@ ENV PYTHONUNBUFFERED=1
 EXPOSE 8000
 VOLUME ["/data"]
 
-LABEL org.opencontainers.image.source="https://github.com/WOOWTECH/Woow_cloudflare_tunnel_webgui" \
-      org.opencontainers.image.title="woow-cf-tunnel" \
-      org.opencontainers.image.description="Cloudflare Tunnel Web GUI with a supervised cloudflared connector"
+# install.sh adds org.opencontainers.image.version (VERSION) and .revision (git commit).
+LABEL org.opencontainers.image.source="https://github.com/WOOWTECH/apporo_cf_tunnel_web" \
+      org.opencontainers.image.title="Apporo CF Tunnel Web" \
+      org.opencontainers.image.vendor="Apporo" \
+      org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.description="Cloudflare Tunnel Web GUI with a supervised cloudflared connector, linked to Apporo Security Access"
 
 # Docker honours HEALTHCHECK; podman builds OCI images and drops it, so the
 # Quadlet unit sets HealthCmd= itself.
