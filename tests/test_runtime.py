@@ -1,7 +1,9 @@
 """
-測試: services/runtime(每次啟動都以目前設定重建 argv 與 ingress)
-涵蓋: run_parameters 放在 run 之前、DNS 只建立新 hostname、沒有路由時保留既有 config.json、
-ingress 驗證失敗不啟動、憑證檔不安全時不啟動並回報 health、開機自動啟動尊重 Stop
+Tests: services/runtime (every start rebuilds the argv and the ingress from the current settings).
+Covers: run_parameters placed before `run`, DNS routed only for new hostnames, an existing
+config.json kept when the settings have no routes, no start when ingress validation fails, no
+start (and a health report) when a credential file is unsafe, and the boot autostart honouring an
+operator Stop.
 """
 
 import json
@@ -38,7 +40,8 @@ async def test_run_parameters_and_options_reach_cloudflared_before_run(deps):
     run = args.index("run")
     assert args.index("--protocol=http2") < run and args.index("--region=us") < run
     assert "--post-quantum" in args and args[args.index("--loglevel") + 1] == "debug"
-    assert args[args.index("--metrics") + 1] == "127.0.0.1:20241"
+    # The fork's default, clear of a WOOW connector's 20241 on the same host.
+    assert args[args.index("--metrics") + 1] == "127.0.0.1:20341"
 
 
 @pytest.mark.asyncio

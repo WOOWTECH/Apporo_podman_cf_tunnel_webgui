@@ -18,7 +18,7 @@ DEFAULT_CONFIG = {
     "log_level": "info",
     "run_parameters": [],            # ["--flag=value", ...]
     "no_tls_verify": True,
-    "container_image": "cloudflare/cloudflared:latest",  # 保留供 e2e/相容
+    "container_image": "cloudflare/cloudflared:latest",  # kept for e2e/compatibility
 }
 
 

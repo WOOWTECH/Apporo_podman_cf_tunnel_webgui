@@ -50,7 +50,7 @@ def check_credentials(data_dir: Path) -> None:
         credentials.protect(data_dir)
     except credentials.CredentialError as exc:
         credentials_error = str(exc)
-        raise TunnelStartError(409, f"憑證檔權限檢查失敗,tunnel 不會啟動:{exc}") from exc
+        raise TunnelStartError(409, f"The credential file check failed, so the tunnel will not start: {exc}") from exc
     credentials_error = None
 
 
@@ -61,11 +61,12 @@ def stopped_by_operator(data_dir: Path) -> bool:
 def _tunnel_uuid(data_dir: Path) -> str:
     tunnel_file = data_dir / "tunnel.json"
     if not tunnel_file.exists():
-        raise TunnelStartError(409, "尚未建立 tunnel:請先到 Setup 頁完成 Cloudflare 登入與建立 tunnel")
+        raise TunnelStartError(409, "No tunnel has been created yet. Log in to Cloudflare and create a "
+                                    "tunnel on the Setup page first.")
     try:
         return json.loads(tunnel_file.read_text())["TunnelID"]
     except (ValueError, KeyError) as exc:
-        raise TunnelStartError(409, "tunnel.json 內容不正確,請到 Setup 頁重新建立 tunnel") from exc
+        raise TunnelStartError(409, "tunnel.json is not valid. Create the tunnel again on the Setup page.") from exc
 
 
 async def write_ingress(cfg: dict, cli, data_dir: Path, route_dns: bool = True) -> dict:
@@ -88,7 +89,7 @@ async def write_ingress(cfg: dict, cli, data_dir: Path, route_dns: bool = True) 
     write_config_json(config, config_path)
     ok, output = await cli.ingress_validate(str(config_path))
     if not ok:
-        raise TunnelStartError(422, f"ingress 驗證失敗:{output}")
+        raise TunnelStartError(422, f"Ingress validation failed: {output}")
     if route_dns:
         routed = set(cfg.get("dns_routed") or [])
         for route in cfg.get("routes", []):
@@ -98,7 +99,7 @@ async def write_ingress(cfg: dict, cli, data_dir: Path, route_dns: bool = True) 
             try:
                 await cli.route_dns(uuid, hostname)
             except RuntimeError as exc:
-                raise TunnelStartError(502, f"{hostname} 的 DNS 路由建立失敗:{exc}") from exc
+                raise TunnelStartError(502, f"Could not create the DNS route for {hostname}: {exc}") from exc
             routed.add(hostname)
         cfg = {**cfg, "dns_routed": sorted(routed)}
     return cfg
@@ -113,13 +114,14 @@ def build_args(cfg: dict, token_store, data_dir: Path) -> list[str]:
     )
     if cfg.get("mode") == "token":
         if not token_store.has():
-            raise TunnelStartError(409, "token 模式尚未設定 tunnel token:請到 Config 頁貼上 token")
+            raise TunnelStartError(409, "Token mode has no tunnel token yet. Paste one on the Config page.")
         return build_run_args(mode="token", token_file=str(token_store.path), **common)
     if not (data_dir / "cert.pem").exists():
-        raise TunnelStartError(409, "尚未登入 Cloudflare:請先到 Setup 頁完成授權")
+        raise TunnelStartError(409, "Not logged in to Cloudflare yet. "
+                                    "Complete the authorization on the Setup page first.")
     _tunnel_uuid(data_dir)
     if not (data_dir / "config.json").exists():
-        raise TunnelStartError(409, "尚未設定任何路由:請到 Config 或 Setup 頁新增路由")
+        raise TunnelStartError(409, "No routes are configured yet. Add a route on the Config or Setup page.")
     return build_run_args(
         mode="local",
         origincert=str(data_dir / "cert.pem"),

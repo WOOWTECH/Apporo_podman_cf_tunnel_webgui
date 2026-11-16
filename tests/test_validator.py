@@ -1,6 +1,6 @@
 """
-測試 4: Validator 安全性測試
-涵蓋: 容器映像白名單、Token 格式驗證、注入攻擊防護
+Test 4: Validator security tests
+Covers: the container image allow-list, token format validation, and injection protection
 """
 
 import pytest
@@ -9,10 +9,10 @@ from backend.services.validator import validate_image, validate_tunnel_token
 
 
 # =========================================================================
-# Image 白名單驗證
+# Image allow-list
 # =========================================================================
 class TestValidateImage:
-    """只允許 cloudflare/cloudflared 官方映像。"""
+    """Only the official cloudflare/cloudflared image is allowed."""
 
     @pytest.mark.parametrize(
         "image",
@@ -30,28 +30,28 @@ class TestValidateImage:
     @pytest.mark.parametrize(
         "image,reason",
         [
-            ("nginx:latest", "非 cloudflared 映像"),
-            ("cloudflare/cloudflared", "缺少 tag"),
-            ("evil/cloudflared:latest", "偽造 namespace"),
-            ("cloudflare/cloudflared:latest; rm -rf /", "注入攻擊"),
-            ("docker.io/evil/cloudflared:latest", "偽造 namespace with registry"),
-            ("ghcr.io/cloudflare/cloudflared:latest", "非 docker.io registry"),
-            ("", "空字串"),
-            ("cloudflare/cloudflared:", "空 tag"),
+            ("nginx:latest", "not a cloudflared image"),
+            ("cloudflare/cloudflared", "missing tag"),
+            ("evil/cloudflared:latest", "spoofed namespace"),
+            ("cloudflare/cloudflared:latest; rm -rf /", "injection attempt"),
+            ("docker.io/evil/cloudflared:latest", "spoofed namespace with registry"),
+            ("ghcr.io/cloudflare/cloudflared:latest", "not the docker.io registry"),
+            ("", "empty string"),
+            ("cloudflare/cloudflared:", "empty tag"),
         ],
     )
     def test_invalid_images(self, image, reason):
-        assert validate_image(image) is False, f"應拒絕: {reason}"
+        assert validate_image(image) is False, f"should be rejected: {reason}"
 
 
 # =========================================================================
-# Tunnel Token 驗證
+# Tunnel token validation
 # =========================================================================
 class TestValidateTunnelToken:
-    """Token 長度 >= 10，禁止 shell 特殊字元。"""
+    """A token has at least 10 characters and no shell metacharacters."""
 
     def test_valid_jwt_token(self):
-        # 模擬典型的 eyJ... base64 JWT token
+        # A typical eyJ... base64 JWT-style token
         token = "eyJhIjoiMTIzIiwidCI6IjQ1NiIsInMiOiI3ODkifQ=="
         assert validate_tunnel_token(token) is True
 
@@ -70,7 +70,7 @@ class TestValidateTunnelToken:
         assert validate_tunnel_token("") is False
 
     def test_none_like_empty(self):
-        # None 不是 str，但 validate_tunnel_token 先判斷 falsy
+        # None is not a str, but validate_tunnel_token checks for a falsy value first
         assert validate_tunnel_token("") is False
 
     @pytest.mark.parametrize(

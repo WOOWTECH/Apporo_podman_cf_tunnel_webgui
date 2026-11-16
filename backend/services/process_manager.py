@@ -80,14 +80,17 @@ DEFAULT_TOKEN_FILE = "/data/.tunnel_token"
 def metrics_addr() -> str | None:
     """cloudflared metrics/readiness address from CF_METRICS_ADDR, or None.
 
-    The Quadlet unit sets it (127.0.0.1:20241) so the container healthcheck
-    and the migration watchdog always know where /ready is. Without it,
-    cloudflared picks the first free port of 20241-20245 by itself.
+    The Quadlet unit sets it (127.0.0.1:20341 by default) so the container
+    healthcheck and the upgrade gate (scripts/upgrade.sh) always know where
+    /ready is. Without it, cloudflared picks the first free port of
+    20241-20245 by itself.
     """
     return os.environ.get("CF_METRICS_ADDR") or None
 
 
-DEFAULT_METRICS_ADDR = "127.0.0.1:20241"
+# Not cloudflared's 20241: with host networking this fork must not take the
+# port of a WOOW connector running on the same host.
+DEFAULT_METRICS_ADDR = "127.0.0.1:20341"
 
 
 def effective_metrics_addr() -> str:

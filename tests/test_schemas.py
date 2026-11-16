@@ -1,6 +1,6 @@
 """
-測試 1: Pydantic Schema 模型驗證
-涵蓋: AdditionalHost, LogLevel, TunnelConfigWrite 的邊緣條件
+Test 1: Pydantic schema model validation
+Covers: edge cases of AdditionalHost, LogLevel and TunnelConfigWrite
 """
 
 import pytest
@@ -16,10 +16,10 @@ from backend.models.schemas import (
 
 
 # =========================================================================
-# LogLevel 列舉
+# LogLevel enum
 # =========================================================================
 class TestLogLevel:
-    """cloudflared --loglevel 接受的 5 個等級。"""
+    """The 5 levels cloudflared --loglevel accepts."""
 
     @pytest.mark.parametrize("level", ["debug", "info", "warn", "error", "fatal"])
     def test_valid_log_levels(self, level):
@@ -35,10 +35,10 @@ class TestLogLevel:
 
 
 # =========================================================================
-# AdditionalHost 模型
+# AdditionalHost model
 # =========================================================================
 class TestAdditionalHost:
-    """驗證 AdditionalHost 的欄位驗證邏輯。"""
+    """Field validation of AdditionalHost."""
 
     def test_valid_host(self):
         h = AdditionalHost(hostname="app.example.com", service="http://localhost:3000")
@@ -90,17 +90,17 @@ class TestAdditionalHost:
 
 
 # =========================================================================
-# TunnelConfigWrite — 本地管理新欄位
+# TunnelConfigWrite — new locally managed fields
 # =========================================================================
 class TestTunnelConfigWrite:
-    """驗證 TunnelConfigWrite 的所有欄位和驗證邏輯。"""
+    """Every field of TunnelConfigWrite and its validation."""
 
     def _minimal(self, **overrides):
         base = {}
         base.update(overrides)
         return TunnelConfigWrite(**base)
 
-    # --- 基本預設值 ---
+    # --- defaults ---
     def test_defaults(self):
         cfg = self._minimal()
         assert cfg.mode.value == "local"
@@ -220,7 +220,7 @@ class TestTunnelConfigRead:
 
 
 # =========================================================================
-# ContainerStatus 列舉完整性
+# ContainerStatus enum completeness
 # =========================================================================
 class TestContainerStatus:
     @pytest.mark.parametrize(
@@ -240,7 +240,7 @@ class TestContainerStatus:
 
 
 # =========================================================================
-# Phase 2: 本地管理新模型 (TunnelMode / Route / SetupState)
+# Phase 2: new locally managed models (TunnelMode / Route / SetupState)
 # =========================================================================
 from backend.models.schemas import TunnelMode
 
@@ -257,19 +257,19 @@ def test_route_accepts_valid_hostname_and_service():
     r = Route(hostname="app.example.com", service="http://localhost:8080")
     assert r.hostname == "app.example.com"
     assert r.service == "http://localhost:8080"
-    assert r.disableChunkedEncoding is False   # 預設
+    assert r.disableChunkedEncoding is False   # default
 
 
 @pytest.mark.parametrize("bad", [
-    "https://app.example.com",   # 含協定
-    "app.example.com:8123",      # 含埠
-    "App.Example.com",           # 大寫(會被 lower 後仍合法 → 見下說明)
-    "",                          # 空
-    "   ",                       # 純空白
+    "https://app.example.com",   # has a scheme
+    "app.example.com:8123",      # has a port
+    "App.Example.com",           # upper case (valid once lowercased, see below)
+    "",                          # empty
+    "   ",                       # whitespace only
 ])
 def test_route_rejects_invalid_hostname(bad):
     if bad.strip().lower() == "app.example.com":
-        pytest.skip("大寫會被正規化為合法,改由 2.4 驗證")
+        pytest.skip("upper case is normalised to a valid hostname; test_route_lowercases_hostname covers it")
     with pytest.raises(ValidationError):
         Route(hostname=bad, service="http://x")
 

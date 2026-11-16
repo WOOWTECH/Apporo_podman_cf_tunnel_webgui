@@ -1,7 +1,8 @@
 """
-測試: Tunnel API 端點(本地管理版,走 ProcessManager)
-涵蓋: stop 呼叫 pm.stop 並留下 stopped 標記、status、start/restart 以目前設定重建 argv、
-未設定時拒絕啟動
+Tests: Tunnel API endpoints (locally managed edition, through ProcessManager).
+Covers: stop calling pm.stop and staying temporary (no stop marker), status (including a hand-made
+stop marker), start/restart rebuilding the argv from the current settings, and refusing to start
+when nothing is configured.
 """
 
 import pytest

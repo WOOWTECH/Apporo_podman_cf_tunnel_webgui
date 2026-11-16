@@ -122,7 +122,7 @@ class _FakeProc:
         async def gen():
             for ln in self._lines:
                 yield ln.encode()
-            # 模擬使用者完成授權後 cloudflared 寫出 cert 並結束
+            # Simulate cloudflared writing the cert and exiting once the user has authorized
             from pathlib import Path
             Path(self._cert).write_text("FAKE CERT")
         return _AsyncLineReader(gen())
@@ -158,4 +158,4 @@ async def test_login_yields_url_then_writes_cert(tmp_path, monkeypatch):
     async for url in cli.login(src_cert=str(src_cert), dest_cert=str(cert)):
         urls.append(url)
     assert urls == ["https://dash.cloudflare.com/argotunnel?aud=x"]
-    assert cert.read_text() == "FAKE CERT"   # 已搬到 dest
+    assert cert.read_text() == "FAKE CERT"   # moved to dest

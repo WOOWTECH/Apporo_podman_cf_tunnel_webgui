@@ -1,5 +1,5 @@
 """
-Shared fixtures for the Cloudflare Tunnel Web GUI test suite (本地管理版).
+Shared fixtures for the Apporo CF Tunnel Web test suite (locally managed edition).
 
 Two test modes:
   1. Unit / integration: pytest with httpx TestClient (mocked CloudflaredCLI / ProcessManager)
@@ -148,10 +148,10 @@ async def client(tmp_config_dir, mock_cli, mock_pm, tunnel_status):
         ) as ac:
             # Warm up: GET /api/health (CSRF-exempt) to grab the cookie
             warmup = await ac.get("/api/health")
-            csrf_token = warmup.cookies.get("csrftoken", "")
+            csrf_token = warmup.cookies.get("apporo_csrftoken", "")
             if csrf_token:
                 ac.headers["x-csrftoken"] = csrf_token
-                ac.cookies.set("csrftoken", csrf_token)
+                ac.cookies.set("apporo_csrftoken", csrf_token)
             yield ac
 
 
@@ -160,4 +160,4 @@ async def client(tmp_config_dir, mock_cli, mock_pm, tunnel_status):
 # ---------------------------------------------------------------------------
 @pytest.fixture()
 def live_base_url():
-    return os.getenv("CF_TEST_URL", "http://127.0.0.1:18000")
+    return os.getenv("CF_TEST_URL", "http://127.0.0.1:18100")

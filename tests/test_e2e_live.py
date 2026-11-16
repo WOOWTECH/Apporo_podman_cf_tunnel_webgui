@@ -1,11 +1,14 @@
 """
-E2E 即時測試(對真實運行中的容器)。
+Live E2E tests (against a real, running container).
 
-使用方式:
-  CF_TEST_URL=http://127.0.0.1:18000 pytest -m e2e -v
+Usage:
+  CF_TEST_URL=http://127.0.0.1:18100 pytest -m e2e -v
 
-預設 deselect(僅在有運行容器時手動跑)。對齊新「本地管理 + 單一容器」設計,
-不依賴 podman、不使用舊 HA 欄位。
+Deselected by default (run them by hand while a container is running). They follow the
+"locally managed + single container" design: no podman dependency, no old HA fields.
+
+CF_TEST_URL is this app's own GUI/API (the fork's default port 18100), never the Apporo
+platform: these tests change the settings through PUT /api/config.
 """
 
 import os
@@ -15,7 +18,7 @@ import httpx
 
 pytestmark = [pytest.mark.e2e]
 
-BASE_URL = os.getenv("CF_TEST_URL", "http://127.0.0.1:18000")
+BASE_URL = os.getenv("CF_TEST_URL", "http://127.0.0.1:18100")
 
 
 @pytest.fixture()
@@ -25,12 +28,12 @@ def http():
 
 
 def _get_csrf(http: httpx.Client) -> dict:
-    """取得 CSRF cookie 並回傳對應 header。"""
+    """Get the CSRF cookie and return the matching header."""
     resp = http.get("/api/config")
-    csrf_token = resp.cookies.get("csrftoken", "")
+    csrf_token = resp.cookies.get("apporo_csrftoken", "")
     if not csrf_token:
         for cookie in http.cookies.jar:
-            if cookie.name == "csrftoken":
+            if cookie.name == "apporo_csrftoken":
                 csrf_token = cookie.value
                 break
     return {"x-csrftoken": csrf_token}
@@ -62,7 +65,7 @@ class TestE2ESetupState:
 
 
 # =========================================================================
-# Config GET — 新欄位
+# Config GET — new fields
 # =========================================================================
 class TestE2EConfigGet:
     def test_get_config_has_new_fields(self, http):
@@ -83,7 +86,7 @@ class TestE2EConfigGet:
 
 
 # =========================================================================
-# Config PUT — 新欄位與持久化
+# Config PUT — new fields and persistence
 # =========================================================================
 class TestE2EConfigPut:
     def test_put_routes_and_persist(self, http):
@@ -91,7 +94,7 @@ class TestE2EConfigPut:
         payload = {
             "mode": "local",
             "tunnel_name": "e2e-tunnel",
-            "log_level": "notice",
+            "log_level": "debug",
             "catch_all_service": "http://localhost:80",
             "routes": [
                 {"hostname": "e2e-app.example.com",
@@ -103,16 +106,16 @@ class TestE2EConfigPut:
         assert resp.status_code == 200
         data = resp.json()
         assert data["tunnel_name"] == "e2e-tunnel"
-        assert data["log_level"] == "notice"
+        assert data["log_level"] == "debug"
         assert len(data["routes"]) == 1
-        # 持久化
+        # persisted
         again = http.get("/api/config").json()
         assert again["tunnel_name"] == "e2e-tunnel"
         assert len(again["routes"]) == 1
 
 
 # =========================================================================
-# Config PUT — 驗證錯誤
+# Config PUT — validation errors
 # =========================================================================
 class TestE2EConfigErrors:
     def test_invalid_log_level_rejected(self, http):

@@ -35,9 +35,9 @@ RUN_PARAMETER_RE = re.compile(
     r"|--logfile|--loglevel|--pidfile|--protocol|--region|--retries|--tag)=.*$"
 )
 RUN_PARAMETER_ERROR = (
-    "不是允許的 run parameter。允許的旗標:--edge-bind-address、--edge-ip-version、"
-    "--grace-period、--ha-connections、--logfile、--loglevel、--pidfile、--protocol、"
-    "--region、--retries、--tag(格式:--flag=value,一行一個)"
+    "Not an allowed run parameter. Allowed flags: --edge-bind-address, --edge-ip-version, "
+    "--grace-period, --ha-connections, --logfile, --loglevel, --pidfile, --protocol, "
+    "--region, --retries, --tag (format: --flag=value, one per line)."
 )
 
 
@@ -76,8 +76,9 @@ def validate_run_parameters(value: Any) -> list[str]:
 
 TOKEN_RE = re.compile(r"eyJ[A-Za-z0-9+/=_-]+")
 TOKEN_ERROR = (
-    "看起來不是有效的 Cloudflare tunnel token。請從 Cloudflare Zero Trust 後台複製"
-    "以 eyJ 開頭的整段 token(也可以直接貼上 cloudflared service install 指令)。"
+    "This does not look like a valid Cloudflare tunnel token. Copy the whole token that "
+    "starts with eyJ from the Cloudflare Zero Trust dashboard (you can also paste the "
+    "cloudflared service install command as it is)."
 )
 
 
@@ -148,9 +149,10 @@ class Route(BaseModel):
     def _valid_hostname(cls, v: str) -> str:
         v = v.strip().lower()
         if not v:
-            raise ValueError("hostname 不可為空")
+            raise ValueError("hostname cannot be empty")
         if not VALID_HOSTNAME_RE.match(v):
-            raise ValueError("hostname 不可含協定(http://)或埠(:8123),且須小寫")
+            raise ValueError("hostname must be a bare host name such as app.example.com, "
+                             "without a scheme (http://), a port (:8123) or a path")
         return v
 
     @field_validator("service")
@@ -158,7 +160,7 @@ class Route(BaseModel):
     def _valid_service(cls, v: str) -> str:
         v = v.strip()
         if not v:
-            raise ValueError("service 不可為空")
+            raise ValueError("service cannot be empty")
         return v
 
 

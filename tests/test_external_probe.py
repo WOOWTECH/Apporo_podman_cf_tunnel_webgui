@@ -7,20 +7,20 @@ from backend.services.external_probe import classify_response, probe
 
 
 def test_cloudflare_team_login_redirect_is_recognized():
-    hostname = "sa-gui-e2e-1024-122f4b.woowtech.io"
-    location = ("https://woowtech.cloudflareaccess.com/cdn-cgi/access/login/"
+    hostname = "sa-gui-e2e-1024-122f4b.example.com"
+    location = ("https://example-team.cloudflareaccess.com/cdn-cgi/access/login/"
                 + hostname + "?kid=example")
     assert classify_response(302, location, hostname, "cloudflare") == "login_required"
 
 
 def test_similar_looking_redirect_does_not_claim_access_protection():
-    hostname = "sa-gui-e2e-1024-122f4b.woowtech.io"
+    hostname = "sa-gui-e2e-1024-122f4b.example.com"
     path = "/cdn-cgi/access/login/" + hostname
-    assert classify_response(302, "https://woowtech.cloudflareaccess.com.evil.test" + path,
+    assert classify_response(302, "https://example-team.cloudflareaccess.com.evil.test" + path,
                              hostname, "cloudflare") == "undetermined"
-    assert classify_response(302, "http://woowtech.cloudflareaccess.com" + path,
+    assert classify_response(302, "http://example-team.cloudflareaccess.com" + path,
                              hostname, "cloudflare") == "undetermined"
-    assert classify_response(302, "https://woowtech.cloudflareaccess.com" + path,
+    assert classify_response(302, "https://example-team.cloudflareaccess.com" + path,
                              hostname, "nginx") == "undetermined"
 
 

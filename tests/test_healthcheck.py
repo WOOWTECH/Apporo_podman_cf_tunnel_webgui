@@ -5,6 +5,7 @@ The script runs as a subprocess against two local HTTP servers standing in for
 the FastAPI backend (/api/health) and cloudflared's metrics server (/ready).
 No containers, no network beyond 127.0.0.1.
 """
+import importlib.util
 import json
 import socket
 import subprocess
@@ -197,3 +198,20 @@ def test_output_never_contains_the_token(tmp_path, servers):
     backend, metrics = servers(BACKEND_OK), servers(_ready(0))
     rc, out = _run(tmp_path, backend.port, metrics.port)
     assert "do-not-leak" not in out and "eyJzZWNyZXQi" not in out
+
+
+# ── defaults ────────────────────────────────────────────────
+
+
+def test_default_metrics_address_matches_the_backend(monkeypatch):
+    # A run without CF_METRICS_ADDR (docker/podman run by hand): the backend
+    # pins cloudflared's metrics to its default, so the healthcheck must probe
+    # that same address or a healthy tunnel is reported down. 20341, not
+    # cloudflared's 20241, so a WOOW connector can share the host network.
+    from backend.services.process_manager import DEFAULT_METRICS_ADDR
+
+    monkeypatch.delenv("CF_METRICS_ADDR", raising=False)
+    spec = importlib.util.spec_from_file_location("cf_webui_healthcheck", SCRIPT)
+    script = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(script)
+    assert script.METRICS == DEFAULT_METRICS_ADDR == "127.0.0.1:20341"

@@ -1,6 +1,6 @@
 """
-測試: Setup 上線精靈 API
-涵蓋: state / create tunnel / apply(成功 + 驗證失敗)/ login WS
+Tests: the Setup wizard API.
+Covers: state / create tunnel / apply (success + validation failure) / login WS
 """
 
 import pytest
@@ -40,7 +40,7 @@ async def test_create_tunnel_endpoint_returns_uuid(client, monkeypatch, tmp_conf
     monkeypatch.setattr("backend.routers.setup.DATA_DIR", tmp_config_dir)
     resp = await client.post("/api/setup/tunnel", json={"tunnel_name": "demo"})
     assert resp.status_code == 200
-    assert resp.json()["tunnel_uuid"] == "uuid-test"  # 來自 mock_cli
+    assert resp.json()["tunnel_uuid"] == "uuid-test"  # from mock_cli
 
 
 # =========================================================================

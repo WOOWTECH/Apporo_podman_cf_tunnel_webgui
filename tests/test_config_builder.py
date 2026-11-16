@@ -26,7 +26,7 @@ def test_single_route_has_hostname_service_and_no_tls_verify():
         "service": "http://localhost:8080",
         "originRequest": {"noTLSVerify": True},
     }
-    # catch-all 仍在最後
+    # the catch-all stays last
     assert cfg["ingress"][-1]["service"] == "http_status:404"
 
 
@@ -59,8 +59,8 @@ def test_catch_all_service_replaces_404():
 def test_no_tls_verify_false_omits_origin_request_key():
     cfg = build_ingress_config("u", "/c",
         routes=[{"hostname": "h", "service": "s"}], no_tls_verify=False)
-    assert "originRequest" not in cfg["ingress"][0]   # 無任何 origin 設定 → 不產生空 dict
-    assert "originRequest" not in cfg["ingress"][-1]   # catch-all 同理
+    assert "originRequest" not in cfg["ingress"][0]   # no origin settings → no empty dict
+    assert "originRequest" not in cfg["ingress"][-1]   # same for the catch-all
 
 
 def test_multiple_routes_preserve_order_with_catch_all_last():

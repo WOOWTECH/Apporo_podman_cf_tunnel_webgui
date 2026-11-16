@@ -14,9 +14,10 @@ router = APIRouter(prefix="/api/setup", tags=["setup"])
 DATA_DIR = Path("/data")
 
 _TOKEN_MODE_MSG = (
-    "上線精靈僅適用於本地管理 (local) 模式;此實例目前為 token 模式,"
-    "正由既有 tunnel 提供服務。請改用 Config 頁設定,或先將 mode 切換為 local "
-    "再使用精靈,以免誤建 tunnel 或中斷現有連線。"
+    "The setup wizard only works in local (locally managed) mode. This instance is in "
+    "token mode, and an existing tunnel is serving it. Use the Config page instead, or "
+    "switch the mode to local before you use the wizard, so that it cannot create a "
+    "stray tunnel or interrupt the current connection."
 )
 
 
@@ -76,7 +77,7 @@ class ApplyReq(BaseModel):
 async def apply(req: ApplyReq):
     await _reject_if_token_mode()
     if not (DATA_DIR / "tunnel.json").exists():
-        raise HTTPException(400, "尚未建立 tunnel")
+        raise HTTPException(400, "No tunnel has been created yet.")
     cfg = await config_mgr.load()
     cfg = {**cfg, "routes": req.routes, "catch_all_service": req.catch_all_service}
     try:

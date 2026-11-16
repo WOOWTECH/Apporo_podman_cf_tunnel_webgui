@@ -1,6 +1,8 @@
 """
-測試: /data 憑證檔權限防護(對齊 HA add-on 1.1.1 的 cloudflared-credential-guard)
-涵蓋: 0644 修成 0600、symlink 與 hardlink 拒絕且不動到目標、缺檔可接受、不讀檔案內容
+Tests: the permission guard for the credential files on /data (aligned with the HA add-on 1.1.1
+cloudflared-credential-guard).
+Covers: 0644 fixed to 0600, symlinks and hardlinks refused without touching their target, missing
+files accepted, and file contents never read.
 """
 
 import os

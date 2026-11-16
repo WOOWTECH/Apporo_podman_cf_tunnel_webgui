@@ -1,6 +1,6 @@
-"""Anonymous HTTPS checks for published PaaS hostnames.
+"""Anonymous HTTPS checks for the hostnames the Apporo platform publishes.
 
-Only PaaS-returned hostnames enter this module. DNS answers are validated and
+Only platform-returned hostnames enter this module. DNS answers are validated and
 pinned for the actual connection; redirects are never followed. The result is
 an observation, not proof that a particular person can sign in.
 """

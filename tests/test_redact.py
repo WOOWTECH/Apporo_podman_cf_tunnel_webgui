@@ -1,7 +1,7 @@
 """
-測試: 日誌遮罩(對齊 HA add-on logwatch.clean_line)
-涵蓋: token 參數、TunnelSecret、tunnel_token 欄位、裸 token、ANSI 色碼;
-ProcessManager 緩衝區與 GET /api/logs 只會有遮罩後的內容
+Tests: log redaction (aligned with the HA add-on's logwatch.clean_line).
+Covers: token arguments, TunnelSecret, tunnel_token fields, bare tokens and ANSI colour codes;
+the ProcessManager buffer and GET /api/logs only ever hold redacted content.
 """
 
 import pytest

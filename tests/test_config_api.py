@@ -1,6 +1,7 @@
 """
-測試: Config API 端點整合測試(本地管理版)
-涵蓋: GET 回 masked + 新欄位、PUT 設 token 走 token_store、routes 持久化、錯誤處理
+Tests: Config API endpoint integration (locally managed edition).
+Covers: GET returning the masked token and the new fields, PUT storing the token through
+token_store, routes persistence, and error handling.
 """
 
 import pytest
@@ -46,12 +47,12 @@ class TestConfigGet:
     async def test_get_masks_token(self, client):
         resp = await client.get("/api/config")
         data = resp.json()
-        assert "tunnel_token" not in data  # raw token 不應出現
-        assert data["tunnel_token_masked"] == ""  # 尚未設定
+        assert "tunnel_token" not in data  # the raw token must never appear
+        assert data["tunnel_token_masked"] == ""  # not set yet
 
 
 # =========================================================================
-# PUT /api/config — token 走 token_store
+# PUT /api/config — the token goes through token_store
 # =========================================================================
 class TestConfigPutToken:
     @pytest.mark.asyncio
@@ -71,7 +72,7 @@ class TestConfigPutToken:
 
 
 # =========================================================================
-# PUT /api/config — 新欄位
+# PUT /api/config — new fields
 # =========================================================================
 class TestConfigPutNewFields:
     @pytest.mark.asyncio
@@ -134,7 +135,7 @@ class TestConfigPutNewFields:
 
 
 # =========================================================================
-# PUT /api/config — 錯誤處理 & 邊緣條件
+# PUT /api/config — error handling & edge cases
 # =========================================================================
 class TestConfigPutEdgeCases:
     @pytest.mark.asyncio

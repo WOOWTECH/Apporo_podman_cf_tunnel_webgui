@@ -16,7 +16,7 @@ async def test_start_then_running_then_stop():
 async def test_captures_stdout_into_log_buffer():
     pm = ProcessManager()
     await pm.start(["sh", "-c", "echo line-one; echo line-two; sleep 5"])
-    await asyncio.sleep(0.3)   # 讓 reader 收到
+    await asyncio.sleep(0.3)   # let the reader pick them up
     logs = pm.recent_logs()
     assert "line-one" in logs
     assert "line-two" in logs
@@ -30,7 +30,7 @@ async def test_restart_keeps_args_and_runs_again():
     first_pid = pm._proc.pid
     await pm.restart()
     assert pm.is_running() is True
-    assert pm._proc.pid != first_pid   # 是新行程
+    assert pm._proc.pid != first_pid   # a new process
     await pm.stop(timeout=5)
 
 
@@ -39,9 +39,9 @@ async def test_stop_is_idempotent_on_exited_process():
     pm = ProcessManager()
     await pm.start(["sh", "-c", "exit 0"])
     await asyncio.sleep(0.2)
-    await pm.stop(timeout=5)     # 不應拋例外
+    await pm.stop(timeout=5)     # must not raise
     assert pm.is_running() is False
-    await pm.stop(timeout=5)     # 再次 stop 仍安全
+    await pm.stop(timeout=5)     # stopping again is still safe
     assert pm.is_running() is False
 
 
@@ -69,9 +69,9 @@ def test_build_run_args_never_puts_a_token_flag_in_argv():
 
 def test_build_run_args_pins_metrics_address_when_given():
     args = build_run_args(mode="token", binary="cloudflared",
-                          metrics="127.0.0.1:20241")
+                          metrics="127.0.0.1:20341")
     i = args.index("--metrics")
-    assert args[i + 1] == "127.0.0.1:20241"
+    assert args[i + 1] == "127.0.0.1:20341"
     assert i < args.index("run")  # a `tunnel` flag, not a `run` flag
 
 
@@ -82,8 +82,8 @@ def test_build_run_args_omits_metrics_by_default():
 
 def test_metrics_addr_reads_the_environment(monkeypatch):
     from backend.services.process_manager import metrics_addr
-    monkeypatch.setenv("CF_METRICS_ADDR", "127.0.0.1:20241")
-    assert metrics_addr() == "127.0.0.1:20241"
+    monkeypatch.setenv("CF_METRICS_ADDR", "127.0.0.1:20341")
+    assert metrics_addr() == "127.0.0.1:20341"
     monkeypatch.setenv("CF_METRICS_ADDR", "")
     assert metrics_addr() is None
     monkeypatch.delenv("CF_METRICS_ADDR")
@@ -122,8 +122,8 @@ def test_autostart_token_mode_with_token_returns_args():
 def test_autostart_passes_metrics_address():
     args = autostart_args({"mode": "token"}, token="TOK",
                           cert_exists=False, tunnel_exists=False, config_exists=False,
-                          metrics="127.0.0.1:20241")
-    assert args[args.index("--metrics") + 1] == "127.0.0.1:20241"
+                          metrics="127.0.0.1:20341")
+    assert args[args.index("--metrics") + 1] == "127.0.0.1:20341"
 
 
 def test_autostart_token_mode_without_token_returns_none():

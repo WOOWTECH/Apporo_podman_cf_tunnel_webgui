@@ -1,7 +1,8 @@
 """
-測試: PUT /api/config 與 HA add-on options 對齊的語意
-涵蓋: token 保留/移除/替換、貼上安裝指令、無效 token 的 422 不回傳輸入、
-run_parameters 白名單與舊字串格式、token 模式必須有 token、?restart=true 套用、health 欄位
+Tests: PUT /api/config semantics, aligned with the HA add-on options.
+Covers: keeping/removing/replacing the token, pasting the install command, a 422 for an invalid
+token that never echoes the input, the run_parameters allow-list and the legacy string format,
+token mode requiring a token, applying with ?restart=true, and the health fields.
 """
 
 import json
@@ -86,7 +87,7 @@ async def test_save_with_restart_applies_the_new_settings(client, mock_pm):
 async def test_save_with_restart_reports_why_it_could_not_apply(client, mock_pm):
     resp = await client.put("/api/config?restart=true", json={"tunnel_name": "x"})
     assert resp.status_code == 409
-    assert resp.json()["detail"].startswith("設定已儲存")
+    assert resp.json()["detail"].startswith("Settings saved")
     assert (await client.get("/api/config")).json()["tunnel_name"] == "x"
     mock_pm.start.assert_not_awaited()
 

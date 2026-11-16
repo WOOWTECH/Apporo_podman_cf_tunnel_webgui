@@ -1,7 +1,9 @@
 """
-測試: WOOW PaaS 連結(與 HA add-on 1.1.x 相同的 PaaS API 契約)
-涵蓋: device 授權、服務審查擋下不安全設定、綁定後寫入 0600 token 並以 token 模式啟動、
-連線失敗回滾並釋放綁定、解除綁定先確認本機 connector 已停止、設定頁不能動 PaaS 管理的 token
+Tests: the Apporo platform link (the same platform API contract as the WOOW HA add-on 1.1.x).
+Covers: device authorization, the service review blocking unsafe settings, writing the 0600
+token after the binding and starting in token mode, rolling back and releasing the binding when
+the start fails, releasing only once the local connector has stopped, and the Config page not
+touching a token the platform manages.
 """
 
 import asyncio
@@ -23,7 +25,7 @@ def fake_paas(monkeypatch):
         detail = {
             "id": 25,
             "workspace_id": 7,
-            "name": "家用主機",
+            "name": "Home server",
             "state": "active",
             "tunnel_id": "tunnel-25",
             "binding_state": "unbound",
@@ -85,9 +87,9 @@ def fake_paas(monkeypatch):
         def do_GET(self):
             received.append((self.path, self.headers.get("Authorization", "")))
             if self.path == "/api/security-access/workspaces":
-                self._send(200, {"workspaces": [{"id": 7, "name": "家用工作區"}]})
+                self._send(200, {"workspaces": [{"id": 7, "name": "Home workspace"}]})
             elif self.path == "/api/security-access/workspaces/7/accesses":
-                self._send(200, {"accesses": [{"id": 25, "name": "家用主機", "state": "active"}]})
+                self._send(200, {"accesses": [{"id": 25, "name": "Home server", "state": "active"}]})
             elif self.path in ("/api/security-access/accesses/25",
                                "/api/security-access/accesses/25/status"):
                 self._send(200, {"access": received.detail})
@@ -144,7 +146,7 @@ async def test_unlinked_offers_real_portal_entry(client):
     assert response.status_code == 200
     assert response.json() == {
         "authorized": False,
-        "portal_url": "https://aiot.woowtech.io/woow#/workspaces",
+        "portal_url": "https://www.apporo.ai/woow#/workspaces",
         "connection": None,
         "release_pending": False,
     }
@@ -182,11 +184,18 @@ async def test_device_poll_respects_interval_and_persists_tokens_privately(
 @pytest.mark.asyncio
 async def test_subscription_list_and_review_are_read_only(client, fake_paas, tmp_config_dir):
     _authorized(tmp_config_dir)
-    assert (await client.get("/api/paas/workspaces")).json()["workspaces"][0]["id"] == 7
-    assert (await client.get("/api/paas/workspaces/7/accesses")).json()["accesses"][0]["id"] == 25
+    workspace = (await client.get("/api/paas/workspaces")).json()["workspaces"][0]
+    assert workspace["id"] == 7
+    assert workspace["portal_url"] == "https://www.apporo.ai/woow#/workspace/7"
+    access = (await client.get("/api/paas/workspaces/7/accesses")).json()["accesses"][0]
+    assert access["id"] == 25
+    assert access["portal_url"] == "https://www.apporo.ai/woow#/workspace/7/security-access/25/overview"
     review = (await client.get("/api/paas/accesses/25/review")).json()
     assert review["ready"] is True
     assert review["access"]["routes"][0]["hostname"] == "ha.example.com"
+    assert review["portal_access_url"] == "https://www.apporo.ai/woow#/workspace/7/security-access/25/access"
+    assert review["portal_routes_url"] == (
+        "https://www.apporo.ai/woow#/workspace/7/security-access/25/application")
     assert all("tunnel-token" not in path for path, _ in fake_paas)
 
 
@@ -205,7 +214,7 @@ async def test_protected_service_claims_and_starts_in_token_mode(
     args = stoppable_pm.start.await_args.args[0]
     assert args[-2:] == ["--token-file", str(token_file)]
     assert not any("PRIVATE_TUNNEL_TOKEN" in a for a in args)
-    assert any("instance_label=Woow Cloudflared (Podman)" in unquote_plus(path) for path, _ in fake_paas)
+    assert any("instance_label=Apporo CF Tunnel Web (Podman)" in unquote_plus(path) for path, _ in fake_paas)
     state = _link(tmp_config_dir)
     assert state["connection"]["access_id"] == 25 and state["instance_uid"]
     assert "PRIVATE_TUNNEL_TOKEN" not in (tmp_config_dir / "paas-link.json").read_text()
@@ -217,7 +226,7 @@ async def test_manual_token_blocks_paas_claim(client, fake_paas, tmp_config_dir)
     (tmp_config_dir / ".tunnel_token").write_text("manual")
     response = await client.post("/api/paas/accesses/25/connect")
     assert response.status_code == 409
-    assert "手動" in response.json()["detail"]
+    assert "manually configured" in response.json()["detail"]
     assert all("tunnel-token" not in path for path, _ in fake_paas)
 
 
@@ -229,7 +238,7 @@ async def test_config_cannot_touch_the_managed_token_or_leave_token_mode(
     stoppable_pm.start.reset_mock()
     assert (await client.get("/api/config")).json()["tunnel_token_managed_by_paas"] is True
     removed = await client.put("/api/config?restart=true", json={"mode": "token", "tunnel_token": ""})
-    assert removed.status_code == 409 and "解除綁定" in removed.json()["detail"]
+    assert removed.status_code == 409 and "release the binding" in removed.json()["detail"]
     to_local = await client.put("/api/config", json={"mode": "local"})
     assert to_local.status_code == 409
     assert (tmp_config_dir / ".tunnel_token").read_text() == "PRIVATE_TUNNEL_TOKEN"
@@ -257,7 +266,7 @@ async def test_failed_start_rolls_back_and_releases_the_new_binding(
     (tmp_config_dir / "cert.pem").symlink_to(tmp_config_dir / "elsewhere")
     response = await client.post("/api/paas/accesses/25/connect")
     assert response.status_code == 502
-    assert "已回復本機設定" in response.json()["detail"]
+    assert "local settings were restored" in response.json()["detail"]
     assert not (tmp_config_dir / ".tunnel_token").exists()
     assert (await client.get("/api/config")).json()["mode"] == "local"
     assert any("/tunnel-binding?instance_uid=" in path for path, _ in fake_paas)
@@ -311,7 +320,7 @@ async def test_zero_seat_public_route_requires_confirmation_then_claims(
     assert review["public_routes"] == ["ha.example.com"]
     assert review["access"]["routes"][0]["public"] is True
     denied = await client.post("/api/paas/accesses/25/connect")
-    assert denied.status_code == 409 and "公開網址" in denied.json()["detail"]
+    assert denied.status_code == 409 and "public hostnames" in denied.json()["detail"]
     assert all("tunnel-token" not in path for path, _ in fake_paas)
     connected = await client.post("/api/paas/accesses/25/connect",
                                   json={"allow_public_routes": True})
@@ -337,7 +346,7 @@ async def test_mixed_service_only_needs_seat_for_protected_route(client, fake_pa
     fake_paas.detail["subscription"]["ac_max_access_seats"] = 0
     review = (await client.get("/api/paas/accesses/25/review")).json()
     assert review["ready"] is False
-    assert any("ha.example.com" in issue and "席次" in issue for issue in review["issues"])
+    assert any("ha.example.com" in issue and "seats" in issue for issue in review["issues"])
 
 
 @pytest.mark.asyncio
@@ -407,7 +416,7 @@ async def test_disconnect_stops_clears_and_releases_in_one_request(
 async def test_release_waits_while_the_connector_still_answers(
         client, fake_paas, mock_pm, tunnel_status, tmp_config_dir):
     _authorized(tmp_config_dir, instance_uid="host-1",
-                connection={"access_id": 25, "workspace_id": 7, "name": "家用主機"})
+                connection={"access_id": 25, "workspace_id": 7, "name": "Home server"})
     # stop() returned but the process is still up and /ready still answers.
     tunnel_status.metrics_reachable = True
     response = await client.post("/api/paas/disconnect")
@@ -424,7 +433,7 @@ async def test_release_waits_while_the_connector_still_answers(
 async def test_external_probe_rejects_private_hostname_without_network_call(
         client, fake_paas, tmp_config_dir):
     _authorized(tmp_config_dir, instance_uid="host-1",
-                connection={"access_id": 25, "workspace_id": 7, "name": "家用主機"})
+                connection={"access_id": 25, "workspace_id": 7, "name": "Home server"})
     fake_paas.detail["routes"][0]["hostname"] = "127.0.0.1"
     response = await client.get("/api/paas/connection/status?probe=true")
     assert response.status_code == 200
@@ -445,7 +454,7 @@ async def test_account_revoke_removes_local_credentials_after_platform_ack(
 
 @pytest.mark.asyncio
 async def test_account_cannot_revoke_while_connector_is_bound(client, fake_paas, tmp_config_dir):
-    _authorized(tmp_config_dir, connection={"access_id": 25, "workspace_id": 7, "name": "家用主機"})
+    _authorized(tmp_config_dir, connection={"access_id": 25, "workspace_id": 7, "name": "Home server"})
     assert (await client.post("/api/paas/authorization/revoke")).status_code == 409
     assert not fake_paas
 

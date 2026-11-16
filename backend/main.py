@@ -58,7 +58,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Cloudflare Tunnel GUI",
+    title="Apporo CF Tunnel Web",
     version=__version__,
     docs_url="/api/docs",
     redoc_url=None,
@@ -117,10 +117,16 @@ def _get_csrf_secret() -> str:
 
 
 CSRF_SECRET = _get_csrf_secret()
+# The cookie name is this app's own. Browsers keep cookies per host, not per port, and the
+# GUI is opened as http://localhost:<port> through an SSH port-forward. Another GUI on the
+# same host that uses starlette-csrf's default "csrftoken" (WOOW's, for one) signs that
+# cookie with its own secret, and a shared name would make every POST/PUT of whichever
+# GUI was opened second fail with 403.
+CSRF_COOKIE_NAME = "apporo_csrftoken"
 app.add_middleware(
     WebSocketSafeCSRFMiddleware,
     secret=CSRF_SECRET,
-    cookie_name="csrftoken",
+    cookie_name=CSRF_COOKIE_NAME,
     header_name="x-csrftoken",
     exempt_urls=[
         re.compile(r"^/api/docs"),

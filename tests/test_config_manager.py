@@ -1,6 +1,7 @@
 """
-測試: ConfigManager 持久化與合併邏輯(本地管理版)
-涵蓋: 預設值、缺鍵 merge、token 不落地、routes 多筆持久化、空 routes
+Tests: ConfigManager persistence and merge logic (locally managed edition).
+Covers: defaults, merging missing keys, the token never written to settings.json, persisting
+several routes, and empty routes.
 """
 
 import json
@@ -21,7 +22,7 @@ def cfg_path(tmp_path):
 
 
 # =========================================================================
-# 預設值 / 去 HA 化
+# Defaults / no HA fields
 # =========================================================================
 class TestDefaultConfig:
     def test_default_config_has_no_ha_fields(self):
@@ -54,7 +55,7 @@ class TestDefaultConfig:
 
 
 # =========================================================================
-# 缺鍵 merge(舊檔相容)
+# Merging missing keys (compatibility with old files)
 # =========================================================================
 class TestMerge:
     @pytest.mark.asyncio
@@ -79,7 +80,7 @@ class TestMerge:
 
 
 # =========================================================================
-# token 不落地
+# The token is never written to settings.json
 # =========================================================================
 class TestTokenNotPersisted:
     @pytest.mark.asyncio
@@ -91,7 +92,7 @@ class TestTokenNotPersisted:
 
 
 # =========================================================================
-# routes 持久化
+# Routes persistence
 # =========================================================================
 class TestRoutes:
     @pytest.mark.asyncio
