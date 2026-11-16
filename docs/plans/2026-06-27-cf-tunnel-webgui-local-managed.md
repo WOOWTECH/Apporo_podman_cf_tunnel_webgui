@@ -1,5 +1,17 @@
 # Cloudflare Tunnel Web GUI(通用本地管理版)Implementation Plan
 
+> **Apporo CF Tunnel Web 註記：** 這是上游
+> [Woow_cloudflare_tunnel_webgui](https://github.com/WOOWTECH/Woow_cloudflare_tunnel_webgui)
+> 在分支之前的歷史實作計畫，只留作參考，內文沒有改寫。文中的專案名稱、容器 `cf-tunnel-webgui`、
+> volume `cf_data`、連接埠 8888 與 `docker-compose.yml` 都屬於上游與 WOOW 的舊部署，不是本分支；
+> 本分支的名稱與安裝方式以 [README](../../README_zh-TW.md) 為準。請不要照文中的 compose／`podman run`
+> 指令執行，以免碰到同一台主機上 WOOW 的資源。
+>
+> *Apporo CF Tunnel Web note: a historical upstream implementation plan, kept unchanged for
+> reference. The names in it (`cf-tunnel-webgui`, `cf_data`, port 8888, `docker-compose.yml`)
+> belong to upstream and WOOW's old deployment, not to this fork. See the
+> [README](../../README.md).*
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** 把 `Woow_cloudflare_tunnel_webgui` 重構成「單一容器、Docker/Podman 通用」的 Cloudflare Tunnel 自助設定工具:使用者用自己 `cloudflared tunnel login` 的 cert.pem 授權,GUI 產生 config.json 並以子行程跑 cloudflared(本地管理模式),自動建立 DNS。

@@ -1,5 +1,17 @@
 # Cloudflare Tunnel Web GUI — 通用本地管理版 設計文件
 
+> **Apporo CF Tunnel Web 註記：** 這是上游
+> [Woow_cloudflare_tunnel_webgui](https://github.com/WOOWTECH/Woow_cloudflare_tunnel_webgui)
+> 在分支之前的歷史設計文件，只留作參考，內文沒有改寫。文中的專案名稱 `Woow_cloudflare_tunnel_webgui`、
+> 容器 `cf-tunnel-webgui`、volume `cf_data`、連接埠 8888 以及 docker／compose 部署，都屬於上游與 WOOW
+> 的舊部署，不是本分支。本分支的名稱與安裝方式（`apporo-cf-tunnel.service`、volume `apporo_cf_data`、
+> `127.0.0.1:18100`、`scripts/install.sh`）以 [README](../../README_zh-TW.md) 為準。請不要照文中的
+> `docker run`／`podman run` 指令執行，以免碰到同一台主機上 WOOW 的資源。
+>
+> *Apporo CF Tunnel Web note: a historical upstream design document, kept unchanged for
+> reference. The names in it (`cf-tunnel-webgui`, `cf_data`, port 8888, docker/compose) belong
+> to upstream and WOOW's old deployment, not to this fork. See the [README](../../README.md).*
+
 - 日期:2026-06-27
 - 分支:`feat/local-managed-generic`
 - 狀態:歷史文件。已實作,且 1.1.0 起改為 Quadlet + systemd 部署,請以 README 為準。

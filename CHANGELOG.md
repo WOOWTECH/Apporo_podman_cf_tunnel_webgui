@@ -1,13 +1,100 @@
 # Changelog
 
-## 1.2.1 — PaaS routes without Access seats
+## 1.0.0 — Apporo fork of Woow_cloudflare_tunnel_webgui 1.2.1
+
+First release of Apporo CF Tunnel Web, forked from
+[WOOWTECH/Woow_cloudflare_tunnel_webgui](https://github.com/WOOWTECH/Woow_cloudflare_tunnel_webgui)
+1.2.1 (commit `e6226c5`). Every upstream feature is kept. The changes:
+
+**Platform**
+- The platform link connects to the Apporo platform (Security Access on
+  `https://www.apporo.ai`) instead of WOOW PaaS (`https://aiot.woowtech.io`). Portal links
+  open `https://www.apporo.ai/woow#/...`, and device sign-in happens on the page the platform
+  returns (`https://www.apporo.ai/device`).
+- The device is labelled `Apporo CF Tunnel Web (Podman)` on the platform (upstream:
+  `Woow Cloudflared (Podman)`).
+- The platform contract is unchanged: the OAuth client `woow-ha-smart-home` (the Apporo
+  platform uses the same id), the scopes
+  `workspace:read security-access:read security-access:tunnel`, the device-code grant, and
+  every `/api` and `/oauth2` path and payload key.
+
+**Interface**
+- The UI is in English throughout; upstream mixed Traditional Chinese and English. The
+  platform page is now **Apporo Link** (upstream: "PaaS 連結").
+- Apporo branding: gold `#8B6B24` as the primary colour, text `#212121`, a warm `#fbf8f2`
+  background and the "Apporo" wordmark.
+
+**Deployment**
+- Every `woow-cf-tunnel` name is now `apporo-cf-tunnel`: the unit `apporo-cf-tunnel.service`,
+  the container `apporo-cf-tunnel`, the Quadlet files `apporo-cf-tunnel.container`,
+  `apporo-cf-tunnel-data.volume` and the optional `apporo-cf-tunnel-auth.container`, the env
+  file `~/.config/apporo-cf-tunnel/apporo-cf-tunnel.env`, the state directory
+  `~/.local/state/apporo-cf-tunnel`, the backups in `~/backups/apporo-cf-tunnel`, and the image
+  `localhost/apporo-cf-tunnel:<VERSION>-<sha12>`.
+- New defaults, so that the fork can run on the same host as WOOW's GUI: the data volume
+  `apporo_cf_data` (upstream: `cf_data`), the GUI/API on `127.0.0.1:18100` (18000), cloudflared
+  metrics on `127.0.0.1:20341` (20241), and the optional Basic-auth proxy on `127.0.0.1:8988`
+  (8888).
+- The CSRF cookie is `apporo_csrftoken` (upstream: `csrftoken`). Browsers share cookies
+  between the ports of one host, so with one name, whichever of the two GUIs was opened
+  second answered 403 to every change.
+- The scripts refuse values that point at WOOW's install, before they change anything: a WOOW
+  `--stage-dir` (and `install.sh --stage` replaces only a directory that holds an earlier
+  stage), one of WOOW's backups in `restore.sh`, a WOOW directory for `backup.sh --dir`,
+  WOOW's upgrade runs or state directory in `upgrade.sh`, and WOOW's env file as `ENV_FILE`
+  in `auth-passwd.sh`.
+- WOOW's default ports (18000, 20241, 8888) are refused for `UVICORN_PORT`, `CF_METRICS_ADDR`
+  and `AUTH_LISTEN` even when nothing holds them: with WOOW's GUI stopped, the busy-port check
+  could not see them, and WOOW's GUI and connector would then fail to bind on their next start.
+- The data volume is checked by what podman says about it before `install.sh`, `backup.sh`,
+  `restore.sh` or `uninstall.sh --purge` uses it: a volume labelled for another app, created by
+  compose, or mounted by any container other than `apporo-cf-tunnel` is refused whatever its
+  name. Compose's `<project>_cf_data` names are refused by name too. `restore.sh --replace`
+  re-creates the volume with this app's `io.woowtech.app` label.
+- The unit and container the scripts act on are fixed (`apporo-cf-tunnel.service`,
+  `apporo-cf-tunnel`), no longer taken from `NEW_UNIT` / `NEW_CONTAINER` in the environment.
+  `upgrade.sh swap`, its watchdog and `--rollback` refuse a `run.env` that names any other unit
+  or container, and `uninstall.sh` counts edge connections at the installed unit's metrics
+  address rather than an inherited `METRICS_ADDR`.
+- `install.sh` refuses a port that another process holds with `--stage` and while the tunnel
+  runs, not only while the tunnel is stopped. `upgrade.sh` takes its baseline, and checks a
+  rollback, on the ports the running tunnel was installed with, so a port change is gated on
+  the edge connections.
+- `tests/smoke.sh` checks the command line of this app's cloudflared only. Another connector
+  on the host, such as WOOW's older `cf-tunnel-webgui`, may pass `--token`; that is reported.
+
+**Removed**
+- `scripts/migrate-legacy.sh`, and the legacy guards and paths that existed only for it. The
+  deployments it migrated (the `cf-tunnel-webgui` container and units, the `cf_data` volume,
+  the compose project) are WOOW's. The Apporo scripts never detect, stop, adopt, migrate or
+  remove any WOOW resource: `woow-*`, `cf-tunnel-webgui*`, `cf_data`,
+  `~/.config/woow-cf-tunnel`.
+
+**Unchanged**
+- The vendored files listed in `scripts/lib/quadlet-lib.manifest`, including
+  `scripts/lib/quadlet-lib.sh` 1.8.0, its versions ledger and `.github/workflows/quadlet-ci.yml`.
+- cloudflared 2026.6.1, pinned by version and SHA256; the liveness chain; the credential-file
+  guard; the token in `/data/.tunnel_token` (mode 0600, passed with `--token-file`).
+
+**Version**
+- Numbering starts again at 1.0.0 (`VERSION` and the backend `__version__`).
+
+---
+
+## Upstream history (WOOWTECH/Woow_cloudflare_tunnel_webgui)
+
+The entries below are upstream's changelog up to the fork point. Only their heading level was
+changed. The names in them (`woow-cf-tunnel`, `cf_data`, ports 18000 / 20241 / 8888,
+WOOW PaaS, `migrate-legacy.sh`) describe upstream, not this fork.
+
+### 1.2.1 — PaaS routes without Access seats
 
 - A subscription with zero Access seats can now link when its routes are explicitly public. Each protected route still requires an Access seat, a login method and a specific email allow policy.
 - Review and connection status distinguish public routes from Access-protected routes. Both the UI and backend require explicit confirmation before claiming a service with public hostnames.
 - Public routes can be claimed while PaaS keeps publication pending; the origin remains closed until the connector is live and PaaS finishes publishing. Missing hostnames, origins, or ambiguous protection state still block the claim.
 - Existing PaaS bindings, token files, Quadlet units and data volumes require no migration. This release preserves the connector and its remote binding during the image upgrade.
 
-## 1.2.0 — feature parity with the Woow Cloudflared HA add-on (1.1.1)
+### 1.2.0 — feature parity with the Woow Cloudflared HA add-on (1.1.1)
 
 **Added**
 - **WOOW PaaS link** (`/paas` page, `/api/paas/*`). It uses the same flow and PaaS API as the
@@ -96,7 +183,7 @@
   `quadlet-lib.manifest` only ever proved "not edited since it was copied here" - the manifest
   is written by this repo - so it stayed green through the whole collision.
 
-## 1.1.0 — Quadlet + systemd as the primary deployment
+### 1.1.0 — Quadlet + systemd as the primary deployment
 
 **Deployment**
 - Rootless Podman Quadlet units under user systemd: `woow-cf-tunnel.container` (host
@@ -130,6 +217,6 @@
 - `docker-compose.yml` is gone; the last commit that ships it is tagged `compose-final`.
 - `build_run_args()` no longer takes `token=`; callers pass `token_file=`.
 
-## 1.0.0
+### 1.0.0
 - Single-container FastAPI + Vue GUI that supervises cloudflared directly, with token and
   local-managed modes, the setup wizard, live logs and the compose deployment.
