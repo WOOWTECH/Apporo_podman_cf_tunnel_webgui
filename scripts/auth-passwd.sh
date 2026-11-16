@@ -18,14 +18,18 @@ HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
 user=${1:?usage: auth-passwd.sh USER}
 [[ $user =~ ^[A-Za-z0-9._@-]+$ ]] || { echo "auth-passwd: invalid user name (use A-Z a-z 0-9 . _ @ -)" >&2; exit 64; }
 env_file=${ENV_FILE:-$HOME/.config/apporo-cf-tunnel/apporo-cf-tunnel.env}
-if cf_foreign_path "$env_file"; then
+if d=$(cf_foreign_own_dir); then
+  echo "auth-passwd: $d leads into a directory of WOOW's Cloudflare Tunnel Web GUI ($(readlink -m -- "$d")); this package never writes there. Make it a directory of its own" >&2
+  exit 1
+fi
+if cf_resolved_foreign "$env_file"; then
   echo "auth-passwd: $env_file is an env file of WOOW's Cloudflare Tunnel Web GUI; this package never reads it, nor writes the htpasswd it names (unset ENV_FILE to use ~/.config/apporo-cf-tunnel/apporo-cf-tunnel.env)" >&2
   exit 1
 fi
 ht=''
 [[ -r $env_file ]] && ht=$(sed -n 's/^AUTH_HTPASSWD=//p' "$env_file" | tail -n1)
 ht=${ht:-%h/.config/apporo-cf-tunnel/htpasswd}
-if cf_foreign_path "$ht"; then
+if cf_resolved_foreign "$ht"; then
   echo "auth-passwd: $ht is in the config dir of WOOW's Cloudflare Tunnel Web GUI; this package never writes there (set AUTH_HTPASSWD=%h/.config/apporo-cf-tunnel/htpasswd in $env_file)" >&2
   exit 1
 fi

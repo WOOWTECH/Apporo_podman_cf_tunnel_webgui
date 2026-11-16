@@ -24,6 +24,22 @@ jobs:
       - name: pytest (backend + healthcheck)
         run: python -m pytest -m "not e2e" -q
 
+  frontend:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci
+      - name: vitest (UI, Apporo branding guard)
+        run: npx vitest run
+      - name: type check and build
+        run: npm run build
+
   scripts:
     runs-on: ubuntu-24.04 # apt podman = 4.9.3, systemd 255: the target host versions
     steps:

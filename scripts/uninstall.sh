@@ -21,6 +21,7 @@ HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
 . "$HERE/lib/cf-gate.sh"
 # shellcheck source=render-args.sh
 . "$HERE/render-args.sh"
+cf_require_own_dirs
 export QL_LOG_PREFIX=uninstall QL_APP=$CF_APP
 
 QUADLET_DIR=${QL_QUADLET_DIR:-$HOME/.config/containers/systemd}

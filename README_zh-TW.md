@@ -257,6 +257,9 @@ volume，兩個介面會搶同一把 token。
   反過來，`backup.sh --dir` 也絕不寫進 WOOW 的目錄；
 - `upgrade.sh swap|status|commit|abort|--rollback` 指定 WOOW 的升級紀錄目錄、
   `CF_STATE_ROOT` 指向 WOOW 的狀態目錄，或升級紀錄的 `run.env` 列出本應用程式以外的單元或容器。
+- 本應用程式的目錄經由符號連結指向 WOOW 的目錄：每支腳本動手前都會檢查
+  `~/.config/apporo-cf-tunnel`、`~/.local/state/apporo-cf-tunnel`、`~/backups/apporo-cf-tunnel`
+  與 quadlet-lib 的狀態目錄；`AUTH_HTPASSWD`、`ENV_FILE` 與 `--stage-dir` 也會解析符號連結後再檢查。
 
 腳本停止、啟動與檢查的單元和容器是固定的：`apporo-cf-tunnel.service` 與 `apporo-cf-tunnel`。
 shell 裡 export 的 `NEW_UNIT` 或 `NEW_CONTAINER`（例如為了調整 WOOW 自己的升級）會被忽略，

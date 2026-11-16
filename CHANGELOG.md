@@ -42,7 +42,8 @@ First release of Apporo CF Tunnel Web, forked from
   `--stage-dir` (and `install.sh --stage` replaces only a directory that holds an earlier
   stage), one of WOOW's backups in `restore.sh`, a WOOW directory for `backup.sh --dir`,
   WOOW's upgrade runs or state directory in `upgrade.sh`, and WOOW's env file as `ENV_FILE`
-  in `auth-passwd.sh`.
+  in `auth-passwd.sh`. A directory of this app that is a symlink into one of WOOW's (config,
+  state, backups) is refused by every script, and paths are checked with symlinks resolved.
 - WOOW's default ports (18000, 20241, 8888) are refused for `UVICORN_PORT`, `CF_METRICS_ADDR`
   and `AUTH_LISTEN` even when nothing holds them: with WOOW's GUI stopped, the busy-port check
   could not see them, and WOOW's GUI and connector would then fail to bind on their next start.

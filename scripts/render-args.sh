@@ -10,7 +10,8 @@
 #   cf_image_ref           print localhost/apporo-cf-tunnel:<VERSION>-<git-sha12>[-dirty]
 #   cf_foreign_volume NAME / cf_foreign_path PATH / cf_foreign_port PORT
 #                          true for a volume name, path or default port of WOOW's Cloudflare
-#                          Tunnel Web GUI
+#                          Tunnel Web GUI (cf_resolved_foreign PATH: also through symlinks)
+#   cf_require_own_dirs    die when a fixed directory of this app leads into one of WOOW's
 #   cf_check_volume NAME VERB [HINT]
 #                          die unless the volume is missing or, by what podman says about it,
 #                          ours (needs podman)
@@ -37,6 +38,35 @@ cf_foreign_volume() {
 # cf_foreign_path <path>: inside ~/.config/woow-cf-tunnel or ~/.config/cf-tunnel-webgui
 # (by path component, so a home directory such as /home/woowtech is not caught)
 cf_foreign_path() { [[ /$1/ == */woow-cf-tunnel/* || /$1/ == */cf-tunnel-webgui/* ]]; }
+# cf_resolved_foreign <path>: cf_foreign_path for <path> as typed and with its symlinks
+# resolved (%h is $HOME), so a path of ours that is a symlink into WOOW's dirs is caught too
+cf_resolved_foreign() {
+  local p=${1//%h/$HOME}
+  cf_foreign_path "$p" || cf_foreign_path "$(readlink -m -- "$p")"
+}
+# cf_foreign_own_dir: print the first fixed directory of this app that leads into a directory
+# of WOOW's GUI and return 0; return 1 when none does. An operator who symlinked
+# ~/.config/apporo-cf-tunnel or ~/.local/state/apporo-cf-tunnel to WOOW's, to carry its
+# settings over, would otherwise have these scripts write, back up or delete WOOW's files.
+# (A CF_STATE_ROOT set in the environment has its own guard in lib/cf-gate.sh.)
+cf_foreign_own_dir() {
+  local d
+  for d in "$HOME/.config/apporo-cf-tunnel" "$HOME/.local/state/apporo-cf-tunnel" \
+    "$HOME/backups/apporo-cf-tunnel" "${QL_STATE_ROOT:-$HOME/.local/state/woow-quadlet}/apporo-cf-tunnel"; do
+    if cf_resolved_foreign "$d"; then
+      printf '%s\n' "$d"
+      return 0
+    fi
+  done
+  return 1
+}
+# cf_require_own_dirs: die (ql_die) when cf_foreign_own_dir finds one
+cf_require_own_dirs() {
+  local d
+  if d=$(cf_foreign_own_dir); then
+    ql_die "$d leads into a directory of WOOW's Cloudflare Tunnel Web GUI ($(readlink -m -- "$d")); this package never writes there. Make it a directory of its own"
+  fi
+}
 # cf_foreign_port <port>: a default port of WOOW's GUI: 18000 (GUI), 20241 (cloudflared
 # --metrics), 8888 (auth proxy; also the GUI port of its old compose file). None of this
 # app's ports may be one, even while WOOW's GUI is stopped and nothing holds it: its
@@ -133,7 +163,7 @@ cf_validate_env() {
     fi
   done
   ql_assert_match AUTH_HTPASSWD "$ht" '(%h|/)[A-Za-z0-9._/@+-]*'
-  if cf_foreign_path "$ht"; then
+  if cf_resolved_foreign "$ht"; then
     ql_die "AUTH_HTPASSWD=$ht is inside the config dir of WOOW's Cloudflare Tunnel Web GUI; this package never writes there. Use %h/.config/apporo-cf-tunnel/htpasswd"
   fi
   [[ $gui != "${metrics##*:}" ]] || ql_die "UVICORN_PORT and CF_METRICS_ADDR use the same port $gui"

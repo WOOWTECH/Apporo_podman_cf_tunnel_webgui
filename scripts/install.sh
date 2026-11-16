@@ -43,6 +43,7 @@ REPO=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
 ql_require_own_lineage "$REPO" WOOWTECH/apporo_cf_tunnel_web
 # shellcheck source=render-args.sh
 . "$REPO/scripts/render-args.sh"
+cf_require_own_dirs
 
 # ---- per-repo settings -----------------------------------------------------------------
 APP=apporo-cf-tunnel
@@ -65,19 +66,20 @@ while (($#)); do
     --allow-dirty) allow_dirty=1 ;;
     --stage) stage=1 ;;
     --stage-dir)
-      STAGE_DIR=${2:?--stage-dir needs a value}; stage=1; shift
-      # --stage replaces this directory: never one of WOOW's (typed, or reached via a symlink)
-      if cf_foreign_path "$STAGE_DIR" || cf_foreign_path "$(readlink -m -- "$STAGE_DIR")"; then
-        ql_die "--stage-dir $STAGE_DIR is inside a directory of WOOW's Cloudflare Tunnel Web GUI; --stage replaces the directory it is given, and this package never writes there"
-      fi ;;
+      STAGE_DIR=${2:?--stage-dir needs a value}; stage=1; shift ;;
     --no-start) no_start=1 ;;
     --dry-run) export QL_DRY_RUN=1 ;;
-    -h | --help) sed -n '2,28p' "$0"; exit 0 ;;
+    -h | --help) sed -n '2,29p' "$0"; exit 0 ;;
     *) ql_die "unknown option $1 (see --help)" ;;
   esac
   shift
 done
 ((!(with_auth && without_auth))) || ql_die "--with-auth and --without-auth exclude each other"
+# --stage replaces its directory (the default one too): never one of WOOW's, typed or
+# reached through a symlink
+if ((stage)) && cf_resolved_foreign "$STAGE_DIR"; then
+  ql_die "--stage-dir $STAGE_DIR is inside a directory of WOOW's Cloudflare Tunnel Web GUI; --stage replaces the directory it is given, and this package never writes there"
+fi
 export QL_APP=$APP QL_HOLD_UNITS=$TUNNEL_UNIT
 dry=0
 [[ ${QL_DRY_RUN:-0} == 1 ]] && dry=1
@@ -232,6 +234,7 @@ stage_dir_replaceable() {
   [[ -e $d || -L $d ]] || return 0
   [[ -d $d && ! -L $d ]] || return 1
   real=$(cd -- "$d" && pwd -P) || return 1
+  ! cf_foreign_path "$real" || return 1
   [[ $real != "$(cd -- "$QDIR" 2>/dev/null && pwd -P)" ]] || return 1
   root=$(cd -- "$HOME/.local/state/$APP" 2>/dev/null && pwd -P) || root=''
   [[ -n $root && $real == "$root"/* ]] && return 0

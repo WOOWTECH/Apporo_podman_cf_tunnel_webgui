@@ -32,6 +32,7 @@ _env_expect=${EXPECT_CONNS:-}
 . "$HERE/lib/cf-gate.sh"
 # shellcheck source=render-args.sh
 . "$HERE/render-args.sh"
+cf_require_own_dirs
 export QL_LOG_PREFIX=upgrade QL_APP=$CF_APP
 # CF_STATE_ROOT can come from the environment. WOOW's GUI keeps its upgrade runs in a state
 # directory of its own; none of them is ours to create, start, commit, abort or roll back.

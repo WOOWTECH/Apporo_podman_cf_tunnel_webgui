@@ -734,6 +734,27 @@ t_upgrade_refuses_a_run_env_naming_another_unit() {
 case_ units-and-config-name-only-this-app t_units_and_config_name_only_this_app
 case_ scripts-name-woow-only-in-the-guard t_scripts_name_woow_only_in_the_guard
 case_ defaults-are-not-woows t_defaults_are_not_woows
+# An operator who symlinked our config or state directory to WOOW's, to carry its settings
+# over: every script stops before it writes, backs up or deletes anything there.
+t_scripts_refuse_own_dirs_that_lead_into_woows() {
+  sandbox
+  ln -s "$HOME/.config/woow-cf-tunnel" "$HOME/.config/apporo-cf-tunnel"
+  refused "install.sh, config dir a symlink to WOOW's" "leads into a directory of WOOW's" \
+    bash "$REPO/scripts/install.sh"
+  # shellcheck disable=SC2119 # no VAR=value: our own (symlinked) env file
+  refused "auth-passwd.sh, config dir a symlink to WOOW's" "leads into a directory of WOOW's" passwd_with
+  refused "backup.sh, config dir a symlink to WOOW's" "leads into a directory of WOOW's" \
+    bash "$REPO/scripts/backup.sh"
+  rm -- "$HOME/.config/apporo-cf-tunnel"
+  ln -s "$HOME/.local/state/woow-cf-tunnel" "$HOME/.local/state/apporo-cf-tunnel"
+  refused "install.sh --stage, state dir a symlink to WOOW's" "leads into a directory of WOOW's" \
+    bash "$REPO/scripts/install.sh" --stage
+  refused "uninstall.sh --purge, state dir a symlink to WOOW's" "leads into a directory of WOOW's" \
+    bash "$REPO/scripts/uninstall.sh" --purge
+  never_called 'podman (build|volume|image|unshare|pull|rm)|systemctl --user (start|restart|stop|enable|disable|daemon-reload)'
+  untouched
+}
+
 case_ env-guard-refuses-woow-volumes t_env_guard_refuses_woow_volumes
 case_ env-guard-refuses-woow-ports t_env_guard_refuses_woow_ports
 case_ env-guard-refuses-woow-paths t_env_guard_refuses_woow_paths
@@ -756,6 +777,7 @@ case_ restore-ignores-woows-exported-settings t_restore_ignores_woows_exported_s
 case_ uninstall-purge-ignores-woows-exported-settings t_uninstall_purge_ignores_woows_exported_settings
 case_ upgrade-ignores-woows-exported-settings t_upgrade_ignores_woows_exported_settings
 case_ upgrade-refuses-a-run-env-naming-another-unit t_upgrade_refuses_a_run_env_naming_another_unit
+case_ scripts-refuse-own-dirs-that-lead-into-woows t_scripts_refuse_own_dirs_that_lead_into_woows
 
 printf '\n%s: %d passed, %d failed\n' "${0##*/}" "$npass" "$nfail"
 ((nfail == 0)) || { printf 'failed: %s\n' "${FAILED[*]}"; exit 1; }

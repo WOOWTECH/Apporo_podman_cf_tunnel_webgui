@@ -281,6 +281,10 @@ The scripts refuse a value that points at WOOW's install before they change anyt
 - one of WOOW's upgrade runs, or `CF_STATE_ROOT` set to WOOW's state directory, for
   `upgrade.sh swap|status|commit|abort|--rollback`, and a run whose `run.env` names any unit
   or container but this app's.
+- a directory of this app that leads into one of WOOW's through a symlink:
+  `~/.config/apporo-cf-tunnel`, `~/.local/state/apporo-cf-tunnel`, `~/backups/apporo-cf-tunnel`
+  and its quadlet-lib state directory are checked by every script before it does anything, and
+  `AUTH_HTPASSWD`, `ENV_FILE` and `--stage-dir` are checked with their symlinks resolved.
 
 The unit and the container the scripts stop, start and check are fixed:
 `apporo-cf-tunnel.service` and `apporo-cf-tunnel`. A `NEW_UNIT` or `NEW_CONTAINER` exported in

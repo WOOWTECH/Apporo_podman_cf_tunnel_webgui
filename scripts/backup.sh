@@ -21,6 +21,7 @@ HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
 . "$HERE/lib/quadlet-lib.sh"
 # shellcheck source=render-args.sh
 . "$HERE/render-args.sh"
+cf_require_own_dirs
 export QL_LOG_PREFIX=backup QL_APP=apporo-cf-tunnel
 
 QUADLET_DIR=${QL_QUADLET_DIR:-$HOME/.config/containers/systemd}
