@@ -4,7 +4,7 @@
       :type="visible ? 'text' : 'password'"
       :value="displayValue"
       :placeholder="placeholder"
-      class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 pr-10 text-sm shadow-sm focus:border-cf-orange focus:outline-none focus:ring-1 focus:ring-cf-orange"
+      class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 pr-10 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
       @input="onInput"
       @focus="onFocus"
     />

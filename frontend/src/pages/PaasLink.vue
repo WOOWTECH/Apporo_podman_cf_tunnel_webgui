@@ -1,11 +1,11 @@
 <template>
   <div class="space-y-6 pb-12">
-    <section class="overflow-hidden rounded-3xl bg-slate-950 px-6 py-8 text-white shadow-xl sm:px-9">
-      <p class="text-xs font-semibold uppercase tracking-[0.25em] text-orange-300">WOOW PaaS · TUNNEL 連線</p>
-      <h1 class="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">從訂閱到對外連線，照著做就好</h1>
-      <p class="mt-3 max-w-2xl text-sm leading-7 text-slate-300">先在 PaaS 設定對外網址，再選擇是否加上 Cloudflare Access。此頁會逐一檢查路由和綁定條件，通過後才連結這台主機。</p>
+    <section class="overflow-hidden rounded-3xl bg-ink px-6 py-8 text-white shadow-xl sm:px-9">
+      <p class="text-xs font-semibold uppercase tracking-[0.25em] text-brand-300">Apporo · Security Access</p>
+      <h1 class="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">Link this host to Apporo Security Access</h1>
+      <p class="mt-3 max-w-2xl text-sm leading-7 text-stone-300">Sign in at www.apporo.ai with a device code, pick your workspace and Security Access service, review the routes, then connect. This page checks every route and binding condition and links this host only when they all pass.</p>
       <div class="mt-6 flex flex-wrap gap-2 text-xs font-medium">
-        <span v-for="(step, index) in steps" :key="step" class="rounded-full border border-white/20 bg-white/10 px-3 py-1.5">{{ index + 1 }}　{{ step }}</span>
+        <span v-for="(step, index) in steps" :key="step" class="rounded-full border border-white/20 bg-white/10 px-3 py-1.5"><span class="mr-1.5 font-semibold text-brand-300">{{ index + 1 }}</span>{{ step }}</span>
       </div>
     </section>
 
@@ -14,37 +14,37 @@
 
     <section class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-7">
       <div class="flex items-start gap-4">
-        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-orange-100 font-bold text-cf-orange">1</span>
+        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-100 font-bold text-brand-700">1</span>
         <div class="min-w-0 flex-1">
-          <h2 class="text-lg font-semibold text-gray-900">到 PaaS 開通訂閱</h2>
-          <p class="mt-1 text-sm leading-6 text-gray-600">在 PaaS 選擇工作區與方案，建立安全存取服務。費用與付款都會在 PaaS 確認；這裡不會自動扣款。</p>
-          <div class="mt-3 rounded-xl bg-orange-50 px-4 py-3 text-sm leading-6 text-orange-900">
-            <p class="font-semibold">一個對外網址可先選 1 組路由；Access 席次是選配。</p>
-            <p class="mt-1">不加購 Access 也能綁定 Tunnel，但該網址會直接對網際網路開放。若要先由 Cloudflare 限制允許的 Email，再依人數購買 Access 席次並開啟路由保護。</p>
+          <h2 class="text-lg font-semibold text-ink">Subscribe on Apporo</h2>
+          <p class="mt-1 text-sm leading-6 text-gray-600">On www.apporo.ai, choose a workspace and a plan, then create a Security Access service. Prices and payment are confirmed on Apporo; nothing is charged from this page.</p>
+          <div class="mt-3 rounded-xl bg-brand-100 px-4 py-3 text-sm leading-6 text-brand-900">
+            <p class="font-semibold">One public hostname needs one route. Access seats are optional.</p>
+            <p class="mt-1">You can bind the tunnel without Access seats, but the hostname is then open to the whole internet. To have Cloudflare let in only the email addresses you allow, buy Access seats for the number of people and turn on protection for the route.</p>
           </div>
-          <a :href="bootstrap?.portal_url || portalFallback" target="_blank" rel="noopener noreferrer" class="mt-4 inline-flex rounded-lg bg-cf-orange px-4 py-2.5 text-sm font-semibold text-white hover:bg-orange-600">前往 PaaS 開通 ↗</a>
-          <p class="mt-3 text-xs text-gray-500">已經開通了？繼續下方的帳戶授權，就能選擇現有服務。</p>
+          <a :href="bootstrap?.portal_url || portalFallback" target="_blank" rel="noopener noreferrer" class="mt-4 inline-flex rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700">Subscribe on Apporo ↗</a>
+          <p class="mt-3 text-xs text-gray-500">Already subscribed? Sign in below to choose your existing service.</p>
         </div>
       </div>
     </section>
 
     <section class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-7">
       <div class="flex items-start gap-4">
-        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-orange-100 font-bold text-cf-orange">2</span>
+        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-100 font-bold text-brand-700">2</span>
         <div class="min-w-0 flex-1">
-          <h2 class="text-lg font-semibold text-gray-900">授權這台主機</h2>
-          <p class="mt-1 text-sm leading-6 text-gray-600">按下按鈕後到 PaaS 輸入短碼並同意授權。這個頁面不會要求你貼 Tunnel token。</p>
+          <h2 class="text-lg font-semibold text-ink">Authorize this host</h2>
+          <p class="mt-1 text-sm leading-6 text-gray-600">Get a device code, enter it on www.apporo.ai and allow the connection. This page never asks you to paste a tunnel token.</p>
           <div v-if="bootstrap?.authorized" class="mt-4 flex flex-wrap items-center gap-3">
-            <span class="inline-flex rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-800">✓ PaaS 帳戶已連接</span>
-            <button v-if="!bootstrap.connection && !bootstrap.release_pending" class="text-xs font-semibold text-gray-600 underline" @click="revokeAuthorization">撤銷帳戶授權</button>
+            <span class="inline-flex rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-800">✓ Apporo account connected</span>
+            <button v-if="!bootstrap.connection && !bootstrap.release_pending" class="text-xs font-semibold text-gray-600 underline" @click="revokeAuthorization">Revoke account authorization</button>
           </div>
           <div v-else class="mt-4 space-y-4">
-            <button :disabled="busy" class="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50" @click="beginAuthorization">取得授權短碼</button>
+            <button :disabled="busy" class="rounded-lg bg-ink px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50" @click="beginAuthorization">Get device code</button>
             <div v-if="authorization" class="rounded-xl border border-blue-200 bg-blue-50 p-5">
-              <p class="text-sm font-medium text-blue-900">在 PaaS 頁面輸入這組短碼</p>
-              <p class="mt-2 select-all font-mono text-2xl font-bold tracking-widest text-slate-900">{{ authorization.user_code }}</p>
-              <a :href="authorization.verification_url" target="_blank" rel="noopener noreferrer" class="mt-3 inline-block rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800">開啟授權頁 ↗</a>
-              <p class="mt-3 text-xs text-blue-700">{{ authStatus === 'waiting' ? '等待 PaaS 核准，這裡會自動更新。' : '授權有效時間約 15 分鐘。' }}</p>
+              <p class="text-sm font-medium text-blue-900">Enter this code on the Apporo device page, then select Allow</p>
+              <p class="mt-2 select-all font-mono text-2xl font-bold tracking-widest text-ink">{{ authorization.user_code }}</p>
+              <a :href="authorization.verification_url" target="_blank" rel="noopener noreferrer" class="mt-3 inline-block rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800">Open the device page ↗</a>
+              <p class="mt-3 text-xs text-blue-700">{{ authStatus === 'waiting' ? 'Waiting for you to allow the connection on Apporo. This page updates automatically.' : 'The code is valid for about 15 minutes.' }}</p>
             </div>
           </div>
         </div>
@@ -53,51 +53,51 @@
 
     <section class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-7" :class="!bootstrap?.authorized ? 'opacity-70' : ''">
       <div class="flex items-start gap-4">
-        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-orange-100 font-bold text-cf-orange">3</span>
+        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-100 font-bold text-brand-700">3</span>
         <div class="min-w-0 flex-1">
-          <h2 class="text-lg font-semibold text-gray-900">選服務，檢查每個網址的存取模式</h2>
-          <p class="mt-1 text-sm leading-6 text-gray-600">先在 PaaS 的「應用路由」新增網址。需要 Cloudflare Access 時，再到「存取控制」設定登入方式與允許名單；不需要時，保持該路由的 Access 開關關閉。回到這裡選擇服務。</p>
-          <details class="mt-3 rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
-            <summary class="cursor-pointer font-semibold">PaaS 路由的內部網址要填什麼？出現 400 或 502 怎麼辦？</summary>
-            <p class="mt-3 leading-6">cloudflared 在這台主機上以 host 網路執行，內部網址填這台主機上的服務，例如 <code>http://localhost:8123</code>（Home Assistant）或 <code>http://localhost:80</code>（Nginx Proxy Manager）。請以服務實際監聽的埠為準。</p>
-            <p class="mt-2 leading-6">502 通常要檢查埠與服務是否啟動，例如在主機上執行 <code>curl -I http://localhost:埠</code>。若服務回 400，檢查它是否拒絕反向代理；Home Assistant 需在 HTTP 設定啟用 Trust X-Forwarded-For，並把 <code>127.0.0.1</code> 加入 Trusted proxies。</p>
-            <a href="https://www.home-assistant.io/integrations/http/#reverse-proxies" target="_blank" rel="noopener noreferrer" class="mt-2 inline-block font-semibold text-cf-orange underline">Home Assistant 反向代理設定說明 ↗</a>
+          <h2 class="text-lg font-semibold text-ink">Choose a service and review each hostname's access mode</h2>
+          <p class="mt-1 text-sm leading-6 text-gray-600">First add your hostnames on the Application tab of the Security Access service on Apporo. If a hostname needs Cloudflare Access, set its login method and allow list on the Access tab; otherwise leave Access off for that route. Then come back here and choose the service.</p>
+          <details class="mt-3 rounded-xl bg-stone-50 px-4 py-3 text-sm text-stone-700">
+            <summary class="cursor-pointer font-semibold">Which service URL should an Apporo route use? What if it returns 400 or 502?</summary>
+            <p class="mt-3 leading-6">cloudflared runs on this host with host networking, so the service URL points at a service on this host, for example <code>http://localhost:8123</code> (Home Assistant) or <code>http://localhost:80</code> (Nginx Proxy Manager). Use the port the service actually listens on.</p>
+            <p class="mt-2 leading-6">A 502 usually means a wrong port or a service that is not running; check it on the host, for example with <code>curl -I http://localhost:&lt;port&gt;</code>. If the service answers 400, check whether it rejects reverse proxies: Home Assistant needs <code>use_x_forwarded_for</code> turned on in its <code>http</code> settings, with <code>127.0.0.1</code> in <code>trusted_proxies</code>.</p>
+            <a href="https://www.home-assistant.io/integrations/http/#reverse-proxies" target="_blank" rel="noopener noreferrer" class="mt-2 inline-block font-semibold text-brand underline">Home Assistant reverse proxy settings ↗</a>
           </details>
           <template v-if="bootstrap?.authorized">
-            <button :disabled="busy" class="mt-4 rounded-lg border border-cf-orange bg-orange-50 px-4 py-2 text-sm font-semibold text-cf-orange hover:bg-orange-100 disabled:opacity-50" @click="refreshServices">我已在 PaaS 完成，重新讀取服務</button>
+            <button :disabled="busy" class="mt-4 rounded-lg border border-brand bg-brand-50 px-4 py-2 text-sm font-semibold text-brand-700 hover:bg-brand-100 disabled:opacity-50" @click="refreshServices">I've finished on Apporo, reload services</button>
             <div class="mt-5 grid gap-3 sm:grid-cols-2">
-              <label class="text-sm font-medium text-gray-700">工作區
+              <label class="text-sm font-medium text-gray-700">Workspace
                 <select v-model="workspaceId" class="mt-2 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm" @change="onWorkspaceChange">
-                  <option :value="null">請選擇工作區</option>
+                  <option :value="null">Choose a workspace</option>
                   <option v-for="workspace in workspaces" :key="workspace.id" :value="workspace.id">{{ workspace.name }}</option>
                 </select>
               </label>
-              <label class="text-sm font-medium text-gray-700">安全存取服務
+              <label class="text-sm font-medium text-gray-700">Security Access service
                 <select v-model="accessId" :disabled="!workspaceId" class="mt-2 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm disabled:bg-gray-100" @change="loadReview">
-                  <option :value="null">請選擇服務</option>
+                  <option :value="null">Choose a service</option>
                   <option v-for="access in accesses" :key="access.id" :value="access.id">{{ access.name }} · {{ serviceLabel(access.state) }}</option>
                 </select>
               </label>
             </div>
-            <div v-if="workspaceId && !accesses.length" class="mt-4 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900">這個工作區還沒有安全存取服務。<a :href="workspacePortal" target="_blank" rel="noopener noreferrer" class="font-semibold underline">到 PaaS 建立 ↗</a></div>
+            <div v-if="workspaceId && !accesses.length" class="mt-4 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900">This workspace has no Security Access service yet. <a :href="workspacePortal" target="_blank" rel="noopener noreferrer" class="font-semibold underline">Create one on Apporo ↗</a></div>
             <div v-if="review" class="mt-5 rounded-xl border p-5" :class="review.ready && !review.public_routes.length ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'">
               <div class="flex flex-wrap items-center justify-between gap-2">
-                <h3 class="font-semibold text-gray-900">{{ review.access.name }} · {{ review.ready ? (review.public_routes.length ? '可以連結（含公開網址）' : '可以連結') : '需要完成設定' }}</h3>
-                <button class="text-xs font-semibold text-slate-700 underline" @click="loadReview">重新檢查</button>
+                <h3 class="font-semibold text-ink">{{ review.access.name }} · {{ review.ready ? (review.public_routes.length ? 'Ready to connect (includes public hostnames)' : 'Ready to connect') : 'Setup needed' }}</h3>
+                <button class="text-xs font-semibold text-stone-700 underline" @click="loadReview">Check again</button>
               </div>
-              <p class="mt-2 text-xs text-gray-600">訂閱：{{ review.access.subscription?.plan_name || '尚未訂閱' }}（{{ subscriptionLabel(review.access.subscription?.state) }}） · 服務：{{ serviceLabel(review.access.state) }} · 綁定：{{ bindingLabel(review.access.binding_state) }}</p>
-              <p v-if="review.access.subscription?.ac_max_access_seats != null" class="mt-2 text-xs text-gray-600">Access 席次：已使用 {{ review.access.subscription.ac_used_access_seats ?? '—' }} / {{ review.access.subscription.ac_max_access_seats }} 席。0 席時可用公開路由；受 Access 保護的路由需要席次。</p>
+              <p class="mt-2 text-xs text-gray-600">Subscription: {{ review.access.subscription?.plan_name || 'Not subscribed' }} ({{ subscriptionLabel(review.access.subscription?.state) }}) · Service: {{ serviceLabel(review.access.state) }} · Binding: {{ bindingLabel(review.access.binding_state) }}</p>
+              <p v-if="review.access.subscription?.ac_max_access_seats != null" class="mt-2 text-xs text-gray-600">Access seats: {{ review.access.subscription.ac_used_access_seats ?? '—' }} of {{ review.access.subscription.ac_max_access_seats }} in use. Public routes work with 0 seats; routes protected by Access need seats.</p>
               <div v-for="route in review.access.routes" :key="route.hostname" class="mt-3 rounded-lg bg-white px-4 py-3 text-sm text-gray-700">
                 <span :class="route.public ? 'text-amber-700' : route.protected ? 'text-emerald-700' : route.awaiting_publication ? 'text-amber-700' : 'text-red-700'" class="font-bold">{{ route.awaiting_publication ? '…' : route.public ? '○' : route.protected ? '✓' : '!' }}</span>
                 <span class="ml-2 font-medium">{{ route.hostname }}</span>
-                <span class="ml-2 text-xs text-gray-500">{{ route.public ? (route.awaiting_publication ? '公開路由，等待 PaaS 發布' : '公開路由，未啟用 Access') : route.protected ? 'Access 保護已確認' : route.awaiting_publication ? 'Access 保護已設定，等待發布' : '保護設定未完成' }}</span>
+                <span class="ml-2 text-xs text-gray-500">{{ route.public ? (route.awaiting_publication ? 'Public route, waiting for Apporo to publish it' : 'Public route, Access not enabled') : route.protected ? 'Access protection confirmed' : route.awaiting_publication ? 'Access protection set up, waiting to be published' : 'Protection not finished' }}</span>
               </div>
               <ul v-if="review.issues.length" class="mt-4 list-inside list-disc space-y-1 text-sm text-amber-900"><li v-for="issue in review.issues" :key="issue">{{ issue }}</li></ul>
-              <p v-if="review.public_routes.length" class="mt-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950">{{ review.public_routes.join('、') }} 未啟用 Cloudflare Access。連上 Tunnel 後，任何知道網址的人都能到達來源服務；請確認該服務自己的登入已啟用。</p>
-              <p v-if="review.awaiting_publication" class="mt-4 rounded-lg bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">PaaS 剛記下新的存取設定，要等這台主機的 connector 上線後才會發布。發布前網址只會回 503，不會轉到你的服務；連結後可在下方「刷新連線狀態」看到發布完成。</p>
+              <p v-if="review.public_routes.length" class="mt-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950">Not protected by Cloudflare Access: {{ review.public_routes.join(', ') }}. Once the tunnel is connected, anyone who knows the URL can reach the origin service, so make sure the service's own login is turned on.</p>
+              <p v-if="review.awaiting_publication" class="mt-4 rounded-lg bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">Apporo has just saved the new access settings and publishes them once this host's connector is online. Until then the URL only answers 503 and never reaches your service. After you connect, use “Refresh connection status” below to see when publishing is done.</p>
               <div class="mt-4 flex flex-wrap gap-3 text-sm font-semibold">
-                <a :href="review.portal_routes_url" target="_blank" rel="noopener noreferrer" class="text-cf-orange underline">設定應用路由 ↗</a>
-                <a :href="review.portal_access_url" target="_blank" rel="noopener noreferrer" class="text-cf-orange underline">選用 Access 保護 ↗</a>
+                <a :href="review.portal_routes_url" target="_blank" rel="noopener noreferrer" class="text-brand underline">Set up routes ↗</a>
+                <a :href="review.portal_access_url" target="_blank" rel="noopener noreferrer" class="text-brand underline">Access protection (optional) ↗</a>
               </div>
             </div>
           </template>
@@ -107,43 +107,43 @@
 
     <section class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-7">
       <div class="flex items-start gap-4">
-        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-orange-100 font-bold text-cf-orange">4</span>
+        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-100 font-bold text-brand-700">4</span>
         <div class="min-w-0 flex-1">
-          <h2 class="text-lg font-semibold text-gray-900">連結並啟用</h2>
-          <p class="mt-1 text-sm leading-6 text-gray-600">按下前系統會再檢查一次所有網址。通過後才取得 Tunnel 憑證，綁定這台主機並以 token 模式啟動 cloudflared。</p>
-          <button :disabled="!review?.ready || busy" class="mt-4 rounded-lg bg-cf-orange px-5 py-2.5 text-sm font-semibold text-white shadow-sm disabled:cursor-not-allowed disabled:bg-gray-300" @click="connect">{{ busy ? '處理中…' : '連結並啟用' }}</button>
-          <p v-if="bootstrap?.connection && !bootstrap.release_pending" class="mt-4 rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800">✓ 已連結 {{ bootstrap.connection.name }}。可到 Dashboard 查看 Tunnel 狀態。</p>
+          <h2 class="text-lg font-semibold text-ink">Connect and enable</h2>
+          <p class="mt-1 text-sm leading-6 text-gray-600">Every hostname is checked once more first. Only when that check passes does this host get the tunnel credential, bind to the service and start cloudflared in token mode.</p>
+          <button :disabled="!review?.ready || busy" class="mt-4 rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-sm disabled:cursor-not-allowed disabled:bg-gray-300" @click="connect">{{ busy ? 'Working…' : 'Connect and enable' }}</button>
+          <p v-if="bootstrap?.connection && !bootstrap.release_pending" class="mt-4 rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800">✓ Linked to {{ bootstrap.connection.name }}. See the tunnel status on the Dashboard.</p>
           <div v-if="bootstrap?.release_pending" class="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            本機 Tunnel 已停止，但遠端綁定尚未確認解除（PaaS 暫時無法連線）。服務重新啟動時也會自動重試。
-            <button class="ml-2 font-semibold underline" @click="finishDisconnect">重新嘗試解除綁定</button>
+            The local tunnel is stopped, but the remote binding is not confirmed as released yet (Apporo could not be reached). It is also retried automatically when the service restarts.
+            <button class="ml-2 font-semibold underline" @click="finishDisconnect">Retry releasing the binding</button>
           </div>
           <div v-if="bootstrap?.connection" class="mt-4 flex flex-wrap items-center gap-3">
-            <button class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50" @click="loadStatus(false)">刷新連線狀態</button>
-            <button class="rounded-lg border border-blue-300 bg-blue-50 px-4 py-2 text-xs font-semibold text-blue-800 hover:bg-blue-100" @click="checkExternal">測試外部網址</button>
-            <button v-if="!bootstrap.release_pending" class="text-xs font-semibold text-red-700 underline" @click="disconnect">停止本機連線並解除綁定</button>
-            <button v-else class="text-xs font-semibold text-amber-800 underline" @click="finishDisconnect">檢查並完成遠端解除綁定</button>
+            <button class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50" @click="loadStatus(false)">Refresh connection status</button>
+            <button class="rounded-lg border border-blue-300 bg-blue-50 px-4 py-2 text-xs font-semibold text-blue-800 hover:bg-blue-100" @click="checkExternal">Test public URLs</button>
+            <button v-if="!bootstrap.release_pending" class="text-xs font-semibold text-red-700 underline" @click="disconnect">Stop the local connection and release the binding</button>
+            <button v-else class="text-xs font-semibold text-amber-800 underline" @click="finishDisconnect">Check and finish the remote release</button>
           </div>
           <div v-if="connectionStatus?.connected" class="mt-4 grid gap-3 sm:grid-cols-3">
-            <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm"><p class="text-xs text-gray-500">訂閱</p><p class="mt-1 font-semibold text-gray-900">{{ subscriptionLabel(connectionStatus.subscription?.state) }}</p></div>
-            <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm"><p class="text-xs text-gray-500">網址存取模式</p><p class="mt-1 font-semibold" :class="!connectionStatus.service_ready ? 'text-red-700' : connectionStatus.public_routes.length || connectionStatus.awaiting_publication ? 'text-amber-700' : 'text-emerald-700'">{{ !connectionStatus.service_ready ? '需要修復' : connectionStatus.public_routes.length ? `含 ${connectionStatus.public_routes.length} 條公開網址（無 Access）` : connectionStatus.awaiting_publication ? '等待 PaaS 發布（網址暫回 503）' : 'Access 保護已確認' }}</p></div>
-            <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm"><p class="text-xs text-gray-500">Tunnel</p><p class="mt-1 font-semibold text-gray-900">{{ tunnelLabel(connectionStatus.tunnel_status) }}</p></div>
-            <p class="sm:col-span-3 text-xs text-gray-500">檢查時間：{{ new Date(connectionStatus.checked_at * 1000).toLocaleString() }}。{{ connectionStatus.external.length ? '匿名外部探測只確認回應，不代表指定使用者登入成功。' : '外部網址尚未獨立測試；Tunnel 在線不等於公開網址可用。' }}</p>
+            <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm"><p class="text-xs text-gray-500">Subscription</p><p class="mt-1 font-semibold text-ink">{{ subscriptionLabel(connectionStatus.subscription?.state) }}</p></div>
+            <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm"><p class="text-xs text-gray-500">Hostname access</p><p class="mt-1 font-semibold" :class="!connectionStatus.service_ready ? 'text-red-700' : connectionStatus.public_routes.length || connectionStatus.awaiting_publication ? 'text-amber-700' : 'text-emerald-700'">{{ !connectionStatus.service_ready ? 'Needs fixing' : connectionStatus.public_routes.length ? publicRoutesLabel(connectionStatus.public_routes.length) : connectionStatus.awaiting_publication ? 'Waiting for Apporo to publish (URLs answer 503 for now)' : 'Access protection confirmed' }}</p></div>
+            <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm"><p class="text-xs text-gray-500">Tunnel</p><p class="mt-1 font-semibold text-ink">{{ tunnelLabel(connectionStatus.tunnel_status) }}</p></div>
+            <p class="sm:col-span-3 text-xs text-gray-500">Checked {{ formatTime(connectionStatus.checked_at) }}. {{ connectionStatus.external.length ? 'The anonymous external check only confirms a response; it does not prove that an allowed user can sign in.' : 'Public URLs have not been tested separately yet; an online tunnel does not mean the public URLs work.' }}</p>
             <div v-for="result in connectionStatus.external" :key="result.hostname" class="rounded-xl border border-gray-200 bg-white p-4 text-sm">
-              <p class="font-medium text-gray-900">{{ result.hostname }}</p>
+              <p class="font-medium text-ink">{{ result.hostname }}</p>
               <p class="mt-1 text-xs" :class="result.status === 'login_required' ? 'text-emerald-700' : result.status === 'public_response' && connectionStatus.public_routes.includes(result.hostname) ? 'text-amber-700' : result.status === 'public_response' ? 'text-red-700' : 'text-amber-700'">{{ externalLabel(result.status, connectionStatus.public_routes.includes(result.hostname)) }}</p>
             </div>
             <ul v-if="connectionStatus.issues.length" class="sm:col-span-3 list-inside list-disc text-sm text-red-700"><li v-for="issue in connectionStatus.issues" :key="issue">{{ issue }}</li></ul>
           </div>
-          <p class="mt-3 text-xs text-gray-500">Tunnel 連線成功只代表通道在線；公開網址與登入保護的外部驗證仍需個別確認。</p>
+          <p class="mt-3 text-xs text-gray-500">A connected tunnel only means the tunnel is online. Public URLs and login protection still have to be checked one by one.</p>
         </div>
       </div>
     </section>
-    <section class="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-sm text-slate-700">
-      <h2 class="font-semibold text-slate-900">刪除路由或取消訂閱時</h2>
-      <p class="mt-2 leading-6">此頁解除綁定只會停止這台主機的 Tunnel 並釋放 PaaS 的裝置綁定。請回 PaaS 的應用路由或服務頁完成 DNS、Access 與訂閱清理；本頁不會把「已解除綁定」誤當成「公開網址已刪除」。</p>
-      <a :href="review?.portal_routes_url || workspacePortal" target="_blank" rel="noopener noreferrer" class="mt-3 inline-block font-semibold text-cf-orange underline">前往 PaaS 管理路由 ↗</a>
+    <section class="rounded-2xl border border-stone-200 bg-stone-50 p-6 text-sm text-stone-700">
+      <h2 class="font-semibold text-ink">Removing routes or cancelling the subscription</h2>
+      <p class="mt-2 leading-6">Releasing the binding here only stops this host's tunnel and frees the device binding on Apporo. Clean up DNS, Access and the subscription on the Application tab or the service page on Apporo; this page never treats “binding released” as “public URL deleted”.</p>
+      <a :href="review?.portal_routes_url || workspacePortal" target="_blank" rel="noopener noreferrer" class="mt-3 inline-block font-semibold text-brand underline">Manage routes on Apporo ↗</a>
     </section>
-    <p class="text-center text-xs text-gray-500">自行管理 Cloudflare？<router-link to="/setup" class="font-semibold text-cf-orange underline">前往 Local 模式設定</router-link></p>
+    <p class="text-center text-xs text-gray-500">Managing Cloudflare yourself? <router-link to="/setup" class="font-semibold text-brand underline">Go to local mode setup</router-link></p>
   </div>
 </template>
 
@@ -159,8 +159,8 @@ interface Review { ready: boolean; issues: string[]; public_routes: string[]; aw
 interface Authorization { user_code: string; verification_url: string; interval: number }
 interface ConnectionStatus { connected: boolean; subscription: { state: string } | null; access_ready: boolean; service_ready: boolean; public_routes: string[]; awaiting_publication: boolean; issues: string[]; tunnel_status: string; checked_at: number; external: { hostname: string; status: string; http_status?: number }[] }
 
-const steps = ['開通訂閱', '授權帳戶', '檢查網址', '連結啟用']
-const portalFallback = 'https://aiot.woowtech.io/woow#/workspaces'
+const steps = ['Subscribe', 'Sign in', 'Review routes', 'Connect']
+const portalFallback = 'https://www.apporo.ai/woow#/workspaces'
 const bootstrap = ref<Bootstrap | null>(null)
 const authorization = ref<Authorization | null>(null)
 const authStatus = ref('')
@@ -177,23 +177,34 @@ let authTimer: ReturnType<typeof setTimeout> | undefined
 const workspacePortal = computed(() => workspaces.value.find((item) => item.id === workspaceId.value)?.portal_url || portalFallback)
 
 function label(value: string | undefined, names: Record<string, string>): string {
-  return value ? (names[value] || `待確認（${value}）`) : '無法確認'
+  return value ? (names[value] || `Unrecognized (${value})`) : 'Unknown'
 }
 
 function serviceLabel(value: string): string {
-  return label(value, { pending: '待建立', provisioning: '建立中', active: '已啟用', active_no_route: '已啟用，尚無網址', error: '設定錯誤', suspended: '已停權', deleting: '刪除中' })
+  return label(value, { pending: 'Pending', provisioning: 'Setting up', active: 'Active', active_no_route: 'Active, no hostname yet', error: 'Configuration error', suspended: 'Suspended', deleting: 'Deleting' })
 }
 
 function subscriptionLabel(value?: string): string {
-  return label(value, { in_progress: '有效', draft: '待開通', paused: '已暫停', closed: '已結束', cancel: '已取消' })
+  return label(value, { in_progress: 'Active', draft: 'Awaiting activation', paused: 'Paused', closed: 'Ended', cancel: 'Cancelled' })
 }
 
 function bindingLabel(value: string): string {
-  return label(value, { unbound: '尚未綁定', claimed: '已綁定一台裝置', legacy: '舊版綁定，需檢查' })
+  return label(value, { unbound: 'Not bound', claimed: 'Bound to one device', legacy: 'Legacy binding, needs checking' })
 }
 
 function tunnelLabel(value: string): string {
-  return label(value, { running: '在線', starting: '啟動中', stopped: '未運行' })
+  return label(value, { running: 'Online', starting: 'Starting', stopped: 'Not running' })
+}
+
+function publicRoutesLabel(count: number): string {
+  return `${count} public hostname${count === 1 ? '' : 's'} (no Access)`
+}
+
+// English like the rest of the UI, whatever the browser locale.
+function formatTime(seconds: number): string {
+  return new Date(seconds * 1000).toLocaleString('en-US', {
+    year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit',
+  })
 }
 
 async function loadBootstrap() {
@@ -227,9 +238,9 @@ async function refreshServices() {
       accessId.value = previousAccess
       await loadReview()
     }
-    if (!error.value) message.value = '服務列表已更新。請選擇服務，確認網址存取模式後再連結。'
+    if (!error.value) message.value = 'Service list updated. Choose a service and check how each hostname is accessed before you connect.'
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : '暫時無法更新服務列表'
+    error.value = cause instanceof Error ? cause.message : 'Could not update the service list right now'
   } finally {
     busy.value = false
   }
@@ -251,7 +262,7 @@ async function loadReview() {
     review.value = await api<Review>(`/api/paas/accesses/${accessId.value}/review`)
     error.value = ''
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : '無法檢查服務'
+    error.value = cause instanceof Error ? cause.message : 'Could not check the service'
   }
 }
 
@@ -264,7 +275,7 @@ async function beginAuthorization() {
     authStatus.value = 'waiting'
     authTimer = setTimeout(pollAuthorization, authorization.value.interval * 1000)
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : '無法開始授權'
+    error.value = cause instanceof Error ? cause.message : 'Could not start the authorization'
   } finally {
     busy.value = false
   }
@@ -277,17 +288,17 @@ async function pollAuthorization() {
     if (result.status === 'authorized') {
       authorization.value = null
       await loadBootstrap()
-      message.value = 'PaaS 帳戶已授權。現在選擇工作區與安全存取服務。'
+      message.value = 'Apporo account authorized. Now choose the workspace and the Security Access service.'
       return
     }
     if (result.status === 'waiting') {
       authTimer = setTimeout(pollAuthorization, (result.interval || authorization.value?.interval || 5) * 1000)
       return
     }
-    error.value = result.status === 'denied' ? '授權被拒絕。請重新取得短碼。' : '授權已逾時。請重新取得短碼。'
+    error.value = result.status === 'denied' ? 'The authorization was denied. Get a new device code.' : 'The authorization expired. Get a new device code.'
     authorization.value = null
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : '授權狀態暫時無法確認'
+    error.value = cause instanceof Error ? cause.message : 'Could not check the authorization status right now'
     authTimer = setTimeout(pollAuthorization, 10000)
   }
 }
@@ -295,7 +306,7 @@ async function pollAuthorization() {
 async function connect() {
   if (accessId.value === null || !review.value?.ready) return
   if (review.value.public_routes.length && !window.confirm(
-    `以下網址沒有 Cloudflare Access，連結後可由網際網路直接到達來源服務：\n${review.value.public_routes.join('\n')}\n\n確定啟用公開路由嗎？`
+    `These hostnames have no Cloudflare Access. Once connected, anyone on the internet can reach their origin service:\n${review.value.public_routes.join('\n')}\n\nTurn on these public routes?`
   )) return
   busy.value = true
   error.value = ''
@@ -303,11 +314,11 @@ async function connect() {
     await api(`/api/paas/accesses/${accessId.value}/connect`, {
       method: 'POST', body: JSON.stringify({ allow_public_routes: review.value.public_routes.length > 0 }),
     })
-    message.value = '已連結，cloudflared 已以 token 模式啟動。'
+    message.value = 'Connected. cloudflared is running in token mode.'
     await loadBootstrap()
     await loadStatus()
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : '連結失敗'
+    error.value = cause instanceof Error ? cause.message : 'Could not connect'
     await loadReview()
   } finally {
     busy.value = false
@@ -318,41 +329,41 @@ async function loadStatus(probe = false) {
   try {
     connectionStatus.value = await api<ConnectionStatus>(`/api/paas/connection/status${probe ? '?probe=true' : ''}`)
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : '無法讀取連線狀態'
+    error.value = cause instanceof Error ? cause.message : 'Could not read the connection status'
   }
 }
 
 async function checkExternal() {
-  message.value = '正在從這台主機檢查公開網址…'
+  message.value = 'Checking the public URLs from this host…'
   await loadStatus(true)
   message.value = ''
 }
 
 function externalLabel(status: string, isPublic: boolean): string {
   const labels: Record<string, string> = {
-    login_required: '匿名訪問進入 Cloudflare Access 登入流程',
-    public_response: isPublic ? '公開路由可直接回應；請確認來源服務自己的登入' : '匿名訪問直接得到 200；請立即檢查 Access 保護',
-    blocked_or_protected: 'HTTP 403：可能被 Access 或其他規則封鎖，無法單獨判定',
-    origin_error: '來源服務或 Tunnel 回傳錯誤',
-    blocked_private_address: '網址解析到私有/保留位址，已取消探測',
-    unreachable: 'DNS、TLS 或網路連線失敗',
-    undetermined: '回應無法判定，請到 PaaS 與瀏覽器再驗證',
+    login_required: 'An anonymous visit gets the Cloudflare Access login',
+    public_response: isPublic ? 'Public route answers directly; make sure the origin service has its own login' : 'An anonymous visit got 200 directly; check the Access protection now',
+    blocked_or_protected: 'HTTP 403: blocked by Access or another rule; this check cannot tell which',
+    origin_error: 'The origin service or the tunnel returned an error',
+    blocked_private_address: 'The hostname resolves to a private or reserved address; check skipped',
+    unreachable: 'DNS, TLS or the network connection failed',
+    undetermined: 'The response could not be classified; check again on Apporo and in a browser',
   }
-  return labels[status] || '無法判定'
+  return labels[status] || 'Could not be determined'
 }
 
 async function disconnect() {
-  if (!window.confirm('將停止這台主機的 PaaS Tunnel、清除本機路由，接著解除遠端綁定。\n若這台主機的 SSH 經由這條 Tunnel，停止後將無法從遠端連回，healthcheck 也不會自動拉回。要繼續嗎？')) return
+  if (!window.confirm('This stops the Apporo tunnel on this host, clears the local routes and then releases the remote binding.\nIf SSH to this host goes through this tunnel, you cannot reach it remotely once it stops, and the healthcheck does not bring it back. Continue?')) return
   error.value = ''
   try {
     const result = await api<{ stopped: boolean; release_pending: boolean }>('/api/paas/disconnect', { method: 'POST' })
     message.value = result.release_pending
-      ? '本機 Tunnel 已停止，但遠端綁定尚未解除；請稍後按「重新嘗試解除綁定」。'
-      : '本機連線與遠端綁定均已解除。'
+      ? 'The local tunnel is stopped, but the remote binding is not released yet. Select “Retry releasing the binding” in a moment.'
+      : 'The local connection is stopped and the remote binding is released.'
     connectionStatus.value = null
     await loadBootstrap()
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : '無法停止連線'
+    error.value = cause instanceof Error ? cause.message : 'Could not stop the connection'
   }
 }
 
@@ -360,11 +371,11 @@ async function finishDisconnect() {
   error.value = ''
   try {
     await api('/api/paas/disconnect/finish', { method: 'POST' })
-    message.value = '本機連線與遠端綁定均已解除。'
+    message.value = 'The local connection is stopped and the remote binding is released.'
     connectionStatus.value = null
     await loadBootstrap()
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : '遠端解除綁定尚未完成；請稍後重試或到 PaaS 處理'
+    error.value = cause instanceof Error ? cause.message : 'The remote release is not finished yet. Try again later or release the binding on Apporo.'
   }
 }
 
@@ -378,12 +389,12 @@ async function revokeAuthorization() {
     workspaceId.value = null
     accessId.value = null
     await loadBootstrap()
-    message.value = 'PaaS 帳戶授權已撤銷。'
+    message.value = 'Apporo account authorization revoked.'
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : '撤銷授權失敗'
+    error.value = cause instanceof Error ? cause.message : 'Could not revoke the authorization'
   }
 }
 
-onMounted(() => { loadBootstrap().catch((cause) => { error.value = cause instanceof Error ? cause.message : '無法讀取 PaaS 狀態' }) })
+onMounted(() => { loadBootstrap().catch((cause) => { error.value = cause instanceof Error ? cause.message : 'Could not read the Apporo link status' }) })
 onUnmounted(() => { if (authTimer) clearTimeout(authTimer) })
 </script>

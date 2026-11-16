@@ -14,7 +14,7 @@
           <input
             v-model="autoScroll"
             type="checkbox"
-            class="rounded border-gray-300 text-cf-orange focus:ring-cf-orange"
+            class="rounded border-gray-300 text-brand accent-brand focus:ring-brand"
           />
           Auto-scroll
         </label>

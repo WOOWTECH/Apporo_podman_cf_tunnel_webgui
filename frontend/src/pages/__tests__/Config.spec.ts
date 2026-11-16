@@ -33,7 +33,7 @@ function lastPut(fetchMock: ReturnType<typeof backend>) {
 describe('Config', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
-    document.cookie = 'csrftoken=tok123'
+    document.cookie = 'apporo_csrftoken=tok123'
   })
   afterEach(() => vi.unstubAllGlobals())
 
@@ -56,7 +56,7 @@ describe('Config', () => {
     const wrapper = mountConfig()
     await flushPromises()
     await wrapper.find('textarea').setValue('--token=abc')
-    expect(wrapper.text()).toContain('不是允許的 run parameter')
+    expect(wrapper.text()).toContain('is not an allowed run parameter')
     expect(wrapper.find('button[type="submit"]').attributes('disabled')).toBeDefined()
   })
 
@@ -65,7 +65,7 @@ describe('Config', () => {
     vi.stubGlobal('fetch', fetchMock)
     const wrapper = mountConfig()
     await flushPromises()
-    await wrapper.findAll('button').find((b) => b.text().includes('移除 token'))!.trigger('click')
+    await wrapper.findAll('button').find((b) => b.text().includes('Remove the token'))!.trigger('click')
     await wrapper.find('form').trigger('submit')
     await flushPromises()
     const put = lastPut(fetchMock)
@@ -73,11 +73,11 @@ describe('Config', () => {
     expect(put.body.mode).toBe('local')
   })
 
-  it('a PaaS-managed token hides the token input and locks the mode', async () => {
+  it('an Apporo-managed token hides the token input and locks the mode', async () => {
     vi.stubGlobal('fetch', backend(baseConfig({ mode: 'token', tunnel_token_set: true, tunnel_token_managed_by_paas: true })))
     const wrapper = mountConfig()
     await flushPromises()
-    expect(wrapper.text()).toContain('由 WOOW PaaS 自動管理')
+    expect(wrapper.text()).toContain('managed automatically by Apporo')
     expect(wrapper.find('select').attributes('disabled')).toBeDefined()
   })
 })

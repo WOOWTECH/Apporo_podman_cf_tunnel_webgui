@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-6">
-    <h1 class="text-2xl font-bold text-gray-900">Configuration</h1>
+    <h1 class="text-2xl font-bold text-ink">Configuration</h1>
 
     <div v-if="configStore.loading && !configStore.config" class="text-gray-500">
       Loading...
@@ -14,13 +14,14 @@
           <!-- Mode -->
           <div>
             <label class="block text-sm font-medium text-gray-700">Mode</label>
-            <p class="mb-1 text-xs text-gray-400">
-              local 使用本機憑證 (cert.pem),路由在下方管理;token 使用 Cloudflare 後台或 PaaS 提供的 tunnel token
+            <p class="mb-1 text-xs text-gray-500">
+              local uses this host's certificate (cert.pem), with the routes managed below; token uses a tunnel
+              token from the Cloudflare dashboard or from Apporo
             </p>
             <select
               v-model="form.mode"
               :disabled="managedByPaas"
-              class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-cf-orange focus:outline-none focus:ring-1 focus:ring-cf-orange disabled:bg-gray-100"
+              class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand disabled:bg-gray-100"
             >
               <option value="local">local</option>
               <option value="token">token</option>
@@ -31,9 +32,9 @@
           <div>
             <label class="block text-sm font-medium text-gray-700">Tunnel Token</label>
             <template v-if="!managedByPaas">
-              <p class="mb-1 text-xs text-gray-400">
-                儲存在 /data(權限 0600),不寫入 settings.json。可以直接貼上
-                <code>cloudflared service install …</code> 整段指令。留空則保留現有 token。
+              <p class="mb-1 text-xs text-gray-500">
+                Stored in /data (mode 0600), never in settings.json. You can paste the whole
+                <code>cloudflared service install …</code> command. Leave it empty to keep the current token.
               </p>
               <TokenInput
                 :masked-value="configStore.config?.tunnel_token_masked ?? ''"
@@ -53,27 +54,27 @@
                   class="text-xs font-medium text-red-500 hover:text-red-700"
                   @click="toggleClearToken"
                 >
-                  {{ clearToken ? '儲存時保留 token' : '儲存時移除 token(改用 local 模式)' }}
+                  {{ clearToken ? 'Keep the token when saving' : 'Remove the token when saving (switch to local mode)' }}
                 </button>
               </div>
-              <p v-if="clearToken" class="mt-1 text-xs text-amber-600">儲存後會刪除目前的 token。</p>
+              <p v-if="clearToken" class="mt-1 text-xs text-amber-600">Saving deletes the current token.</p>
             </template>
             <p v-else class="rounded-lg bg-blue-50 px-4 py-3 text-sm leading-6 text-blue-900">
-              此憑證由 WOOW PaaS 自動管理。若要改用手動 token 或 local 模式,請先到
-              <router-link to="/paas" class="font-semibold underline">PaaS 連結</router-link>
-              停止連線並解除綁定。
+              This credential is managed automatically by Apporo. To use a manual token or local mode
+              instead, first stop the connection and release the binding on the
+              <router-link to="/paas" class="font-semibold underline">Apporo Link</router-link> page.
             </p>
           </div>
 
           <!-- Tunnel Name -->
           <div>
             <label class="block text-sm font-medium text-gray-700">Tunnel Name</label>
-            <p class="mb-1 text-xs text-gray-400">Cloudflare Tunnel 名稱(local 模式)</p>
+            <p class="mb-1 text-xs text-gray-500">Cloudflare tunnel name (local mode)</p>
             <input
               v-model="form.tunnel_name"
               type="text"
               placeholder="my-tunnel"
-              class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-cf-orange focus:outline-none focus:ring-1 focus:ring-cf-orange"
+              class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
             />
           </div>
         </div>
@@ -82,20 +83,21 @@
       <!-- Routes -->
       <fieldset class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
         <legend class="px-2 text-sm font-semibold text-gray-700">Routes</legend>
-        <p class="mt-1 mb-3 text-xs text-gray-400">
-          把公開 hostname 導向本機服務(容器使用 host 網路,填 http://localhost:埠)。
-          「儲存並套用」時會為新的 hostname 建立 DNS。
+        <p class="mt-1 mb-3 text-xs text-gray-500">
+          Point public hostnames at services on this host (the container uses host networking, so enter
+          http://localhost:&lt;port&gt;). Save &amp; Apply creates DNS records for new hostnames.
         </p>
         <div
           v-if="form.mode === 'token'"
           class="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700"
         >
-          Token 模式下,ingress 路由由 Cloudflare 後台或 PaaS 管理。以下本地路由設定僅在
-          <span class="font-medium">local</span> 模式生效。
+          In token mode, ingress routes are managed in the Cloudflare dashboard or on Apporo. The local
+          routes below only take effect in <span class="font-medium">local</span> mode.
         </div>
         <p v-else class="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900">
-          移除路由或停止 tunnel,不會自動刪除 Cloudflare DNS。請到 Cloudflare DNS 檢查該網址的 CNAME,
-          確認不再使用後才刪除;也請檢查對應的 Access 應用。
+          Removing a route or stopping the tunnel does not delete its Cloudflare DNS record. Check the
+          hostname's CNAME in Cloudflare DNS and delete it only once nothing uses it; check the matching
+          Access application too.
         </p>
         <RouteEditor :routes="form.routes" @update:routes="form.routes = $event" />
       </fieldset>
@@ -106,14 +108,15 @@
         <div class="mt-2 space-y-4">
           <div>
             <label class="block text-sm font-medium text-gray-700">Catch-All Service URL</label>
-            <p class="mb-1 text-xs text-gray-400">
-              未符合上方 hostname 的流量,例如交給本機的 Nginx Proxy Manager:http://localhost:80
+            <p class="mb-1 text-xs text-gray-500">
+              Traffic that matches none of the hostnames above, for example Nginx Proxy Manager on this
+              host: http://localhost:80
             </p>
             <input
               v-model="form.catch_all_service"
               type="text"
               placeholder="http://localhost:80"
-              class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-cf-orange focus:outline-none focus:ring-1 focus:ring-cf-orange"
+              class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
             />
           </div>
         </div>
@@ -127,12 +130,12 @@
           <div class="flex items-center justify-between">
             <div>
               <span class="text-sm font-medium text-gray-700">Post-Quantum Crypto</span>
-              <p class="text-xs text-gray-400">只使用 QUIC 傳輸,部分網路環境可能無法連線</p>
+              <p class="text-xs text-gray-500">QUIC transport only; some networks cannot connect with it</p>
             </div>
             <button
               type="button"
               class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200"
-              :class="form.post_quantum ? 'bg-cf-orange' : 'bg-gray-200'"
+              :class="form.post_quantum ? 'bg-brand' : 'bg-gray-200'"
               @click="form.post_quantum = !form.post_quantum"
             >
               <span
@@ -146,12 +149,12 @@
           <div class="flex items-center justify-between">
             <div>
               <span class="text-sm font-medium text-gray-700">No TLS Verify</span>
-              <p class="text-xs text-gray-400">Skip origin TLS certificate verification (no-tls-verify)</p>
+              <p class="text-xs text-gray-500">Skip origin TLS certificate verification (no-tls-verify)</p>
             </div>
             <button
               type="button"
               class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200"
-              :class="form.no_tls_verify ? 'bg-cf-orange' : 'bg-gray-200'"
+              :class="form.no_tls_verify ? 'bg-brand' : 'bg-gray-200'"
               @click="form.no_tls_verify = !form.no_tls_verify"
             >
               <span
@@ -166,7 +169,7 @@
             <label class="block text-sm font-medium text-gray-700">cloudflared Log Level</label>
             <select
               v-model="form.log_level"
-              class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-cf-orange focus:outline-none focus:ring-1 focus:ring-cf-orange"
+              class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
             >
               <option v-for="lvl in LOG_LEVELS" :key="lvl" :value="lvl">{{ lvl }}</option>
             </select>
@@ -175,17 +178,17 @@
           <!-- Run Parameters -->
           <div>
             <label class="block text-sm font-medium text-gray-700">Run Parameters</label>
-            <p class="mb-1 text-xs text-gray-400">
-              一行一個,格式 --flag=value。允許:--edge-bind-address、--edge-ip-version、
-              --grace-period、--ha-connections、--logfile、--loglevel、--pidfile、--protocol、
-              --region、--retries、--tag
+            <p class="mb-1 text-xs text-gray-500">
+              One per line, as --flag=value. Allowed: --edge-bind-address, --edge-ip-version,
+              --grace-period, --ha-connections, --logfile, --loglevel, --pidfile, --protocol,
+              --region, --retries, --tag
             </p>
             <textarea
               v-model="runParametersText"
               rows="3"
               placeholder="--protocol=http2&#10;--region=us"
               class="mt-1 block w-full rounded-lg border px-3 py-2 font-mono text-sm shadow-sm focus:outline-none focus:ring-1"
-              :class="runParametersError ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-cf-orange focus:ring-cf-orange'"
+              :class="runParametersError ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-brand focus:ring-brand'"
             />
             <p v-if="runParametersError" class="mt-1 text-xs text-red-600">{{ runParametersError }}</p>
           </div>
@@ -196,14 +199,14 @@
       <div class="flex items-center gap-3">
         <button
           type="submit"
-          class="rounded-lg border border-cf-orange bg-white px-5 py-2 text-sm font-medium text-cf-orange shadow-sm hover:bg-orange-50 disabled:opacity-50"
+          class="rounded-lg border border-brand bg-white px-5 py-2 text-sm font-medium text-brand shadow-sm hover:bg-brand-50 disabled:opacity-50"
           :disabled="configStore.loading || hasErrors"
         >
           {{ configStore.loading ? 'Saving...' : 'Save' }}
         </button>
         <button
           type="button"
-          class="rounded-lg bg-cf-orange px-5 py-2 text-sm font-medium text-white shadow-sm hover:bg-orange-600 disabled:opacity-50"
+          class="rounded-lg bg-brand px-5 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-700 disabled:opacity-50"
           :disabled="configStore.loading || hasErrors"
           @click="onSave(true)"
         >
@@ -217,12 +220,13 @@
           Reset
         </button>
       </div>
-      <p class="text-xs text-gray-400">
-        「Save」只儲存設定;「Save &amp; Apply」會以新設定重新啟動 cloudflared(local 模式會重新產生並驗證 ingress,
-        並為新 hostname 建立 DNS)。tunnel 會中斷數秒。
+      <p class="text-xs text-gray-500">
+        Save only stores the settings. Save &amp; Apply restarts cloudflared with them (in local mode it also
+        regenerates and validates the ingress and creates DNS records for new hostnames); the tunnel drops
+        for a few seconds.
       </p>
       <p v-if="tokenModeWithoutToken" class="text-xs text-amber-600">
-        token 模式需要 tunnel token,請先貼上 token。
+        Token mode needs a tunnel token. Paste one first.
       </p>
 
       <!-- Feedback -->
@@ -230,7 +234,7 @@
         v-if="configStore.saved"
         class="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700"
       >
-        {{ lastSaveApplied ? '設定已儲存並套用。' : '設定已儲存(尚未套用)。' }}
+        {{ lastSaveApplied ? 'Settings saved and applied.' : 'Settings saved (not applied yet).' }}
       </div>
       <div
         v-if="configStore.error"
@@ -281,7 +285,7 @@ const runParameters = computed(() =>
 
 const runParametersError = computed(() => {
   const bad = runParameters.value.find((p) => !RUN_PARAMETER_RE.test(p))
-  return bad ? `'${bad}' 不是允許的 run parameter(格式:--flag=value)` : null
+  return bad ? `'${bad}' is not an allowed run parameter (format: --flag=value)` : null
 })
 
 const tokenModeWithoutToken = computed(() => {

@@ -28,11 +28,11 @@ function mountWizard() {
 describe('SetupWizard', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
-    document.cookie = 'csrftoken=tok123'
+    document.cookie = 'apporo_csrftoken=tok123'
   })
   afterEach(() => vi.unstubAllGlobals())
 
-  it('無 cert → 顯示步驟 A(連結帳號)', async () => {
+  it('no cert → shows step A (link account)', async () => {
     vi.stubGlobal(
       'fetch',
       stateOnly({ has_cert: false, has_tunnel: false, tunnel_uuid: null, mode: 'local' })
@@ -44,7 +44,7 @@ describe('SetupWizard', () => {
     expect(wrapper.find('[data-test="step-b"]').exists()).toBe(false)
   })
 
-  it('有 cert 無 tunnel → 顯示步驟 B(建立 tunnel)', async () => {
+  it('cert but no tunnel → shows step B (create tunnel)', async () => {
     vi.stubGlobal(
       'fetch',
       stateOnly({ has_cert: true, has_tunnel: false, tunnel_uuid: null, mode: 'local' })
@@ -55,7 +55,7 @@ describe('SetupWizard', () => {
     expect(wrapper.find('[data-test="create-tunnel"]').exists()).toBe(true)
   })
 
-  it('有 tunnel → 顯示步驟 C(RouteEditor)', async () => {
+  it('tunnel exists → shows step C (RouteEditor)', async () => {
     vi.stubGlobal(
       'fetch',
       stateOnly({ has_cert: true, has_tunnel: true, tunnel_uuid: 'uuid-1', mode: 'local' })
@@ -66,7 +66,7 @@ describe('SetupWizard', () => {
     expect(wrapper.find('[data-test="add-row"]').exists()).toBe(true)
   })
 
-  it('步驟 C 套用失敗(422)顯示 detail 錯誤', async () => {
+  it('a failed apply in step C (422) shows the detail error', async () => {
     const fetchMock = vi.fn((url: string) => {
       if (url === '/api/setup/state') {
         return Promise.resolve({
@@ -83,7 +83,7 @@ describe('SetupWizard', () => {
         return Promise.resolve({
           ok: false,
           status: 422,
-          json: async () => ({ detail: 'ingress 驗證失敗:bad' }),
+          json: async () => ({ detail: 'ingress validation failed: bad' }),
         })
       }
       return Promise.reject(new Error(`unexpected fetch: ${url}`))
@@ -103,6 +103,6 @@ describe('SetupWizard', () => {
 
     const err = wrapper.find('[data-test="apply-error"]')
     expect(err.exists()).toBe(true)
-    expect(err.text()).toContain('ingress 驗證失敗')
+    expect(err.text()).toContain('ingress validation failed')
   })
 })

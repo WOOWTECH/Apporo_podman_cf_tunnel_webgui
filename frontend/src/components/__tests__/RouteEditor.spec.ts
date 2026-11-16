@@ -8,7 +8,7 @@ function makeRoute(overrides: Partial<Route> = {}): Route {
 }
 
 describe('RouteEditor', () => {
-  it('點「新增路由」會 emit update:routes 多一列', async () => {
+  it('clicking “Add route” emits update:routes with one more row', async () => {
     const wrapper = mount(RouteEditor, { props: { routes: [] } })
     await wrapper.get('[data-test="add-row"]').trigger('click')
 
@@ -19,7 +19,7 @@ describe('RouteEditor', () => {
     expect(payload[0]).toEqual({ hostname: '', service: '', disableChunkedEncoding: false })
   })
 
-  it('點「刪除」會 emit 移除該列', async () => {
+  it('clicking “Remove” emits the routes without that row', async () => {
     const routes = [
       makeRoute({ hostname: 'a.example.com', service: 'http://x' }),
       makeRoute({ hostname: 'b.example.com', service: 'http://y' }),
@@ -32,27 +32,27 @@ describe('RouteEditor', () => {
     expect(payload[0].hostname).toBe('b.example.com')
   })
 
-  it('合法 hostname 不顯示錯誤', () => {
+  it('a valid hostname shows no error', () => {
     const routes = [makeRoute({ hostname: 'app.example.com', service: 'http://x' })]
     const wrapper = mount(RouteEditor, { props: { routes } })
     expect(wrapper.find('[data-test="hostname-error"]').exists()).toBe(false)
   })
 
-  it('非法 hostname(含協定)顯示錯誤', () => {
+  it('a hostname with a protocol shows an error', () => {
     const routes = [makeRoute({ hostname: 'https://app.example.com', service: 'http://x' })]
     const wrapper = mount(RouteEditor, { props: { routes } })
     const err = wrapper.find('[data-test="hostname-error"]')
     expect(err.exists()).toBe(true)
-    expect(err.text()).toContain('協定')
+    expect(err.text()).toContain('protocol')
   })
 
-  it('非法 hostname(含埠)顯示錯誤', () => {
+  it('a hostname with a port shows an error', () => {
     const routes = [makeRoute({ hostname: 'app.example.com:8123', service: 'http://x' })]
     const wrapper = mount(RouteEditor, { props: { routes } })
-    expect(wrapper.find('[data-test="hostname-error"]').text()).toContain('埠')
+    expect(wrapper.find('[data-test="hostname-error"]').text()).toContain('port')
   })
 
-  it('輸入 hostname 會 emit update:routes 帶新值', async () => {
+  it('typing a hostname emits update:routes with the new value', async () => {
     const routes = [makeRoute({ service: 'http://x' })]
     const wrapper = mount(RouteEditor, { props: { routes } })
     const input = wrapper.get('input[type="text"]')

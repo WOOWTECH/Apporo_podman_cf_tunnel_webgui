@@ -1,6 +1,6 @@
 <template>
   <div class="mx-auto flex max-w-3xl flex-col gap-6 py-4">
-    <h1 class="text-2xl font-bold text-gray-900">上線精靈</h1>
+    <h1 class="text-2xl font-bold text-ink">Setup wizard</h1>
 
     <!-- Guard: token-mode instances must not run the wizard -->
     <section
@@ -8,30 +8,30 @@
       data-test="token-guard"
       class="rounded-xl border border-amber-300 bg-amber-50 p-6 shadow-sm"
     >
-      <h2 class="mb-2 text-lg font-semibold text-amber-800">此實例為 token 模式</h2>
+      <h2 class="mb-2 text-lg font-semibold text-amber-800">This instance runs in token mode</h2>
       <p class="mb-3 text-sm text-amber-700">
-        上線精靈用於「本地管理 (local) 模式」從零建立自己的 tunnel。此實例目前以
-        token 模式沿用既有 tunnel 對外服務,在此完成精靈會誤建 tunnel 或中斷現有連線,
-        因此已停用。
+        The setup wizard builds your own tunnel from scratch in locally managed (local) mode.
+        This instance serves traffic through an existing tunnel in token mode; finishing the
+        wizard here could create an unwanted tunnel or cut the current connection, so it is disabled.
       </p>
       <p class="text-sm text-amber-700">
-        要調整設定請到
+        To change the settings, go to
         <router-link to="/config" class="font-medium underline">Config</router-link>;
-        查看狀態請回
-        <router-link to="/" class="font-medium underline">Dashboard</router-link>。
+        to see the status, go back to the
+        <router-link to="/" class="font-medium underline">Dashboard</router-link>.
       </p>
     </section>
 
     <template v-if="!isTokenMode">
     <!-- Step indicator -->
     <ol class="flex items-center gap-2 text-xs font-medium text-gray-400">
-      <li :class="step === 'A' ? 'text-cf-orange' : ''">1. 連結帳號</li>
+      <li :class="step === 'A' ? 'text-brand' : ''">1. Link account</li>
       <li>›</li>
-      <li :class="step === 'B' ? 'text-cf-orange' : ''">2. 建立 Tunnel</li>
+      <li :class="step === 'B' ? 'text-brand' : ''">2. Create tunnel</li>
       <li>›</li>
-      <li :class="step === 'C' ? 'text-cf-orange' : ''">3. 設定路由</li>
+      <li :class="step === 'C' ? 'text-brand' : ''">3. Set up routes</li>
       <li>›</li>
-      <li :class="step === 'D' ? 'text-cf-orange' : ''">4. 運作中</li>
+      <li :class="step === 'D' ? 'text-brand' : ''">4. Running</li>
     </ol>
 
     <!-- Step A: link Cloudflare account -->
@@ -40,22 +40,23 @@
       data-test="step-a"
       class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm"
     >
-      <h2 class="mb-2 text-lg font-semibold text-gray-900">連結 Cloudflare 帳號</h2>
+      <h2 class="mb-2 text-lg font-semibold text-ink">Link your Cloudflare account</h2>
       <p class="mb-4 text-sm text-gray-500">
-        點擊下方按鈕產生授權連結,於瀏覽器登入並授權後,系統會自動偵測憑證。
+        Select the button below to get an authorization link. Once you sign in and authorize in
+        your browser, the certificate is detected automatically.
       </p>
       <button
         type="button"
-        class="rounded-lg bg-cf-orange px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-orange-600 disabled:opacity-50"
+        class="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-700 disabled:opacity-50"
         data-test="start-login"
         :disabled="loginConnecting"
         @click="startLogin"
       >
-        {{ loginConnecting ? '產生連結中…' : '連結 Cloudflare 帳號' }}
+        {{ loginConnecting ? 'Creating link…' : 'Link Cloudflare account' }}
       </button>
 
       <div v-if="loginUrl" class="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4">
-        <p class="mb-1 text-sm text-gray-700">請於瀏覽器開啟下列連結完成授權:</p>
+        <p class="mb-1 text-sm text-gray-700">Open this link in your browser to finish authorizing:</p>
         <a
           :href="loginUrl"
           target="_blank"
@@ -65,7 +66,7 @@
         >
           {{ loginUrl }}
         </a>
-        <p v-if="polling" class="mt-2 text-xs text-gray-500">等待授權完成中…</p>
+        <p v-if="polling" class="mt-2 text-xs text-gray-500">Waiting for authorization…</p>
       </div>
     </section>
 
@@ -75,24 +76,24 @@
       data-test="step-b"
       class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm"
     >
-      <h2 class="mb-2 text-lg font-semibold text-gray-900">建立 Tunnel</h2>
-      <p class="mb-4 text-sm text-gray-500">為這個 tunnel 取一個名稱。</p>
+      <h2 class="mb-2 text-lg font-semibold text-ink">Create a tunnel</h2>
+      <p class="mb-4 text-sm text-gray-500">Give this tunnel a name.</p>
       <div class="flex gap-2">
         <input
           v-model="tunnelName"
           type="text"
           placeholder="my-home-tunnel"
-          class="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-cf-orange focus:outline-none focus:ring-1 focus:ring-cf-orange"
+          class="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
           data-test="tunnel-name"
         />
         <button
           type="button"
-          class="rounded-lg bg-cf-orange px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-orange-600 disabled:opacity-50"
+          class="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-700 disabled:opacity-50"
           data-test="create-tunnel"
           :disabled="!tunnelName.trim() || setup.loading"
           @click="onCreateTunnel"
         >
-          建立
+          Create
         </button>
       </div>
     </section>
@@ -104,22 +105,22 @@
       class="flex flex-col gap-4"
     >
       <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 class="mb-2 text-lg font-semibold text-gray-900">設定路由</h2>
+        <h2 class="mb-2 text-lg font-semibold text-ink">Set up routes</h2>
         <p class="mb-4 text-sm text-gray-500">
-          新增要透過 tunnel 對外公開的服務。Tunnel UUID:
+          Add the services to publish through the tunnel. Tunnel UUID:
           <code class="text-gray-700">{{ setup.tunnelUuid }}</code>
         </p>
         <RouteEditor v-model:routes="routes" />
 
         <div class="mt-4">
           <label class="mb-1 block text-xs font-medium text-gray-500">
-            Catch-all service(選填)
+            Catch-all service (optional)
           </label>
           <input
             v-model="catchAll"
             type="text"
             placeholder="http_status:404"
-            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-cf-orange focus:outline-none focus:ring-1 focus:ring-cf-orange"
+            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
             data-test="catch-all"
           />
         </div>
@@ -136,12 +137,12 @@
       <div>
         <button
           type="button"
-          class="rounded-lg bg-cf-orange px-5 py-2 text-sm font-medium text-white shadow-sm hover:bg-orange-600 disabled:opacity-50"
+          class="rounded-lg bg-brand px-5 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-700 disabled:opacity-50"
           data-test="apply"
           :disabled="!canApply"
           @click="onApply"
         >
-          {{ setup.loading ? '套用中…' : '套用並啟動' }}
+          {{ setup.loading ? 'Applying…' : 'Apply and start' }}
         </button>
       </div>
     </section>
@@ -153,9 +154,9 @@
       class="flex flex-col gap-4"
     >
       <div class="rounded-xl border border-green-200 bg-green-50 p-6 shadow-sm">
-        <h2 class="mb-1 text-lg font-semibold text-green-800">Tunnel 運作中</h2>
+        <h2 class="mb-1 text-lg font-semibold text-green-800">Tunnel is running</h2>
         <p class="text-sm text-green-700">
-          設定已套用,cloudflared 已啟動。Tunnel UUID:
+          The settings are applied and cloudflared has started. Tunnel UUID:
           <code>{{ setup.tunnelUuid }}</code>
         </p>
       </div>

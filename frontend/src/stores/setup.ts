@@ -85,7 +85,7 @@ export const useSetupStore = defineStore('setup', () => {
     } catch {
       /* not JSON — fall through */
     }
-    return `請求失敗(${res.status})`
+    return `Request failed (HTTP ${res.status})`
   }
 
   return {

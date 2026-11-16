@@ -12,11 +12,11 @@ export const VALID_HOSTNAME_RE =
  */
 export function hostnameError(raw: string): string | null {
   const value = raw.trim().toLowerCase()
-  if (!value) return 'hostname 不可為空'
-  if (raw.includes('://')) return 'hostname 不可含協定(例如 http://)'
-  if (raw.includes(':')) return 'hostname 不可含埠(例如 :8123)'
+  if (!value) return 'Hostname is required'
+  if (raw.includes('://')) return 'Hostname must not include a protocol (such as http://)'
+  if (raw.includes(':')) return 'Hostname must not include a port (such as :8123)'
   if (!VALID_HOSTNAME_RE.test(value)) {
-    return 'hostname 格式不正確(僅允許小寫字母、數字、「-」與「.」)'
+    return 'Invalid hostname (only lowercase letters, digits, "-" and "." are allowed)'
   }
   return null
 }

@@ -16,7 +16,7 @@
             :class="
               errors[i]
                 ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
-                : 'border-gray-300 focus:border-cf-orange focus:ring-cf-orange'
+                : 'border-gray-300 focus:border-brand focus:ring-brand'
             "
             @input="setHostname(i, ($event.target as HTMLInputElement).value)"
           />
@@ -31,7 +31,7 @@
             :value="route.service"
             type="text"
             placeholder="http://localhost:8080"
-            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-cf-orange focus:outline-none focus:ring-1 focus:ring-cf-orange"
+            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
             @input="setService(i, ($event.target as HTMLInputElement).value)"
           />
         </div>
@@ -41,7 +41,7 @@
             <input
               :checked="route.disableChunkedEncoding"
               type="checkbox"
-              class="rounded border-gray-300 text-cf-orange focus:ring-cf-orange"
+              class="rounded border-gray-300 text-brand accent-brand focus:ring-brand"
               @change="setDisableChunked(i, ($event.target as HTMLInputElement).checked)"
             />
             Disable chunked
@@ -52,24 +52,24 @@
             data-test="remove-row"
             @click="removeRow(i)"
           >
-            刪除
+            Remove
           </button>
         </div>
       </div>
     </div>
 
     <div v-if="props.routes.length === 0" class="text-sm text-gray-400">
-      尚未新增任何路由。
+      No routes yet.
     </div>
 
     <div>
       <button
         type="button"
-        class="rounded-lg border border-dashed border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 hover:border-cf-orange hover:text-cf-orange"
+        class="rounded-lg border border-dashed border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 hover:border-brand hover:text-brand"
         data-test="add-row"
         @click="addRow"
       >
-        + 新增路由
+        + Add route
       </button>
     </div>
   </div>

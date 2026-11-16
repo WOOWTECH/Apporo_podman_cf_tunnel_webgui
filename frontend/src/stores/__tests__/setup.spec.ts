@@ -6,7 +6,7 @@ describe('setup store', () => {
   beforeEach(() => setActivePinia(createPinia()))
   afterEach(() => vi.unstubAllGlobals())
 
-  it('fetchState 寫入 hasCert/hasTunnel/tunnelUuid/mode', async () => {
+  it('fetchState stores hasCert/hasTunnel/tunnelUuid/mode', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue({
@@ -28,21 +28,21 @@ describe('setup store', () => {
     expect(s.error).toBe(null)
   })
 
-  it('fetchState 失敗時寫入 error', async () => {
+  it('fetchState stores the error when it fails', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue({
         ok: false,
-        text: async () => '伺服器錯誤',
+        text: async () => 'Server error',
       })
     )
     const s = useSetupStore()
     await s.fetchState()
-    expect(s.error).toBe('伺服器錯誤')
+    expect(s.error).toBe('Server error')
   })
 
-  it('createTunnel 帶 CSRF header 並更新 tunnelUuid/hasTunnel', async () => {
-    document.cookie = 'csrftoken=tok123'
+  it('createTunnel sends the CSRF header and updates tunnelUuid/hasTunnel', async () => {
+    document.cookie = 'apporo_csrftoken=tok123'
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ tunnel_uuid: 'uuid-abc' }),
@@ -61,8 +61,8 @@ describe('setup store', () => {
     expect(JSON.parse(init.body)).toEqual({ tunnel_name: 'my-tunnel' })
   })
 
-  it('apply 送出 routes + catch_all_service', async () => {
-    document.cookie = 'csrftoken=tok123'
+  it('apply sends routes + catch_all_service', async () => {
+    document.cookie = 'apporo_csrftoken=tok123'
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ status: 'applied', route_count: 1 }),
@@ -84,19 +84,19 @@ describe('setup store', () => {
     })
   })
 
-  it('apply 422 時把 detail 寫入 error 並回傳 false', async () => {
-    document.cookie = 'csrftoken=tok123'
+  it('apply stores the 422 detail as the error and returns false', async () => {
+    document.cookie = 'apporo_csrftoken=tok123'
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue({
         ok: false,
         status: 422,
-        json: async () => ({ detail: 'ingress 驗證失敗:bad hostname' }),
+        json: async () => ({ detail: 'ingress validation failed: bad hostname' }),
       })
     )
     const s = useSetupStore()
     const ok = await s.apply([], '')
     expect(ok).toBe(false)
-    expect(s.error).toBe('ingress 驗證失敗:bad hostname')
+    expect(s.error).toBe('ingress validation failed: bad hostname')
   })
 })
