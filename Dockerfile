@@ -63,7 +63,7 @@ EXPOSE 8000
 VOLUME ["/data"]
 
 # install.sh adds org.opencontainers.image.version (VERSION) and .revision (git commit).
-LABEL org.opencontainers.image.source="https://github.com/WOOWTECH/apporo_cf_tunnel_web" \
+LABEL org.opencontainers.image.source="https://github.com/WOOWTECH/Apporo_podman_cf_tunnel_webgui" \
       org.opencontainers.image.title="Apporo CF Tunnel Web" \
       org.opencontainers.image.vendor="Apporo" \
       org.opencontainers.image.licenses="MIT" \

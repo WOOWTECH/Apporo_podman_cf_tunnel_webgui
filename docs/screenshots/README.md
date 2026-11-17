@@ -1,7 +1,7 @@
 # Screenshots (upstream)
 
 These images come from upstream
-[WOOWTECH/Woow_cloudflare_tunnel_webgui](https://github.com/WOOWTECH/Woow_cloudflare_tunnel_webgui).
+[WOOWTECH/Woow_podman_cf_tunnel_webgui](https://github.com/WOOWTECH/Woow_podman_cf_tunnel_webgui).
 They show an early upstream release with WOOW branding, from before the Quadlet/systemd rework
 in 1.1.0. They are kept for reference only. They do **not** show Apporo CF Tunnel Web, which
 has:
@@ -28,6 +28,6 @@ Screenshots of the Apporo UI are still to be taken.
 
 ---
 
-這些截圖來自上游 Woow_cloudflare_tunnel_webgui 的早期版本（WOOW 品牌、1.1.0 改用 Quadlet
+這些截圖來自上游 Woow_podman_cf_tunnel_webgui 的早期版本（WOOW 品牌、1.1.0 改用 Quadlet
 之前），只留作參考，並不是 Apporo CF Tunnel Web 的畫面。圖中部分說明已經不正確，例如 tunnel token
 並不是存成 Podman secret，而是資料 volume 裡權限 0600 的檔案（`/data/.tunnel_token`）。

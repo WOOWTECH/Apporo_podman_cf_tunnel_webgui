@@ -19,7 +19,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/platform-www.apporo.ai-8B6B24" alt="Apporo platform">
-  <img src="https://img.shields.io/badge/fork%20of-Woow__cloudflare__tunnel__webgui%201.2.1-8B6B24" alt="Fork of Woow_cloudflare_tunnel_webgui 1.2.1">
+  <img src="https://img.shields.io/badge/fork%20of-Woow__cloudflare__tunnel__webgui%201.2.1-8B6B24" alt="Fork of Woow_podman_cf_tunnel_webgui 1.2.1">
   <img src="https://img.shields.io/badge/Podman-4.9%2B%20(Quadlet)-892CA0?logo=podman&logoColor=white" alt="Podman">
   <img src="https://img.shields.io/badge/systemd-user%20units-informational" alt="systemd">
   <img src="https://img.shields.io/badge/Python-3.12-blue?logo=python&logoColor=white" alt="Python">
@@ -34,7 +34,7 @@
 ## Overview
 
 Apporo CF Tunnel Web is the Apporo edition of
-[WOOWTECH/Woow_cloudflare_tunnel_webgui](https://github.com/WOOWTECH/Woow_cloudflare_tunnel_webgui),
+[WOOWTECH/Woow_podman_cf_tunnel_webgui](https://github.com/WOOWTECH/Woow_podman_cf_tunnel_webgui),
 forked from upstream 1.2.1. It can do everything upstream can. The difference is where the
 platform link goes: the **Apporo Link** page connects this host to a **Security Access** on
 the Apporo platform ([www.apporo.ai](https://www.apporo.ai)), not to WOOW PaaS.
@@ -111,7 +111,7 @@ the tunnel. From detection to recovery takes about 1.5-2.5 minutes.
 ## Install
 
 ```bash
-git clone https://github.com/WOOWTECH/apporo_cf_tunnel_web.git
+git clone https://github.com/WOOWTECH/Apporo_podman_cf_tunnel_webgui.git
 cd apporo_cf_tunnel_web
 
 scripts/install.sh          # first run: writes ~/.config/apporo-cf-tunnel/apporo-cf-tunnel.env and stops
@@ -467,8 +467,8 @@ storage differ from this one. See [`docs/screenshots/README.md`](docs/screenshot
 
 ## Support
 
-- Issues: [GitHub Issues](https://github.com/WOOWTECH/apporo_cf_tunnel_web/issues)
-- Upstream: [WOOWTECH/Woow_cloudflare_tunnel_webgui](https://github.com/WOOWTECH/Woow_cloudflare_tunnel_webgui)
+- Issues: [GitHub Issues](https://github.com/WOOWTECH/Apporo_podman_cf_tunnel_webgui/issues)
+- Upstream: [WOOWTECH/Woow_podman_cf_tunnel_webgui](https://github.com/WOOWTECH/Woow_podman_cf_tunnel_webgui)
 - Changelog: [CHANGELOG.md](CHANGELOG.md)
 
 ## License
@@ -479,5 +479,5 @@ MIT. Copyright (c) 2026 WOOWTECH (upstream) and (c) 2026 Apporo (fork changes); 
 ---
 
 <p align="center">
-  Apporo CF Tunnel Web is built on <a href="https://github.com/WOOWTECH/Woow_cloudflare_tunnel_webgui">Woow_cloudflare_tunnel_webgui</a> by <a href="https://github.com/WOOWTECH">WOOWTECH</a>, with Vue 3 + FastAPI + Podman Quadlet
+  Apporo CF Tunnel Web is built on <a href="https://github.com/WOOWTECH/Woow_podman_cf_tunnel_webgui">Woow_podman_cf_tunnel_webgui</a> by <a href="https://github.com/WOOWTECH">WOOWTECH</a>, with Vue 3 + FastAPI + Podman Quadlet
 </p>

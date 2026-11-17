@@ -35,12 +35,12 @@ REPO=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
 # "No such file or directory" instead of saying what is wrong. ql_require_own_lineage below
 # refuses a hand-copied deployment tree that does carry a lib copy.
 [[ -r $REPO/scripts/lib/quadlet-lib.sh ]] || {
-  printf '%s: ERROR: %s\n' "${0##*/}" "no scripts/lib/quadlet-lib.sh under $REPO: this is not a complete checkout of WOOWTECH/apporo_cf_tunnel_web. Run it from a fresh clone (git clone https://github.com/WOOWTECH/apporo_cf_tunnel_web)" >&2
+  printf '%s: ERROR: %s\n' "${0##*/}" "no scripts/lib/quadlet-lib.sh under $REPO: this is not a complete checkout of WOOWTECH/Apporo_podman_cf_tunnel_webgui. Run it from a fresh clone (git clone https://github.com/WOOWTECH/Apporo_podman_cf_tunnel_webgui)" >&2
   exit 1
 }
 # shellcheck source=lib/quadlet-lib.sh
 . "$REPO/scripts/lib/quadlet-lib.sh"
-ql_require_own_lineage "$REPO" WOOWTECH/apporo_cf_tunnel_web
+ql_require_own_lineage "$REPO" WOOWTECH/Apporo_podman_cf_tunnel_webgui
 # shellcheck source=render-args.sh
 . "$REPO/scripts/render-args.sh"
 cf_require_own_dirs

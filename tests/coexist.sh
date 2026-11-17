@@ -292,7 +292,7 @@ t_units_and_config_name_only_this_app() {
   has "$(cat "$REPO/quadlet/apporo-cf-tunnel.container")" "ContainerName=apporo-cf-tunnel" "the tunnel unit"
   has "$(cat "$REPO/quadlet/apporo-cf-tunnel.container")" "Volume=apporo-cf-tunnel-data.volume:/data" "the tunnel unit"
   has "$(cat "$REPO/quadlet/optional/apporo-cf-tunnel-auth.container")" "ContainerName=apporo-cf-tunnel-auth" "the auth unit"
-  has "$(cat "$REPO/Dockerfile")" 'org.opencontainers.image.source="https://github.com/WOOWTECH/apporo_cf_tunnel_web"' "the Dockerfile"
+  has "$(cat "$REPO/Dockerfile")" 'org.opencontainers.image.source="https://github.com/WOOWTECH/Apporo_podman_cf_tunnel_webgui"' "the Dockerfile"
 }
 
 # The scripts name WOOW's resources in one place only: the guard that refuses them.
