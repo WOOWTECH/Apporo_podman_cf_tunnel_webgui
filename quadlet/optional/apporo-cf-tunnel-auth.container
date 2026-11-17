@@ -14,7 +14,7 @@
 
 [Unit]
 Description=Basic-auth proxy for Apporo CF Tunnel Web (apporo-cf-tunnel-auth)
-Documentation=https://github.com/WOOWTECH/apporo_cf_tunnel_web
+Documentation=https://github.com/WOOWTECH/Apporo_podman_cf_tunnel_webgui
 After=apporo-cf-tunnel.service
 AssertFileNotEmpty=@@AUTH_HTPASSWD@@
 AssertFileNotEmpty=%h/.config/apporo-cf-tunnel/auth-nginx.conf

@@ -71,7 +71,7 @@ t_staged_unit_hardcodes_loopback() {
 # ---- lineage ------------------------------------------------------------------------------
 t_lineage_accepts_this_repo() {
   load
-  ql_require_own_lineage "$REPO" WOOWTECH/apporo_cf_tunnel_web \
+  ql_require_own_lineage "$REPO" WOOWTECH/Apporo_podman_cf_tunnel_webgui \
     || die_t "this checkout must pass its own lineage check"
 }
 
@@ -85,7 +85,7 @@ t_install_from_a_tree_without_the_lib() {
   out=$( (bash "$tree/scripts/install.sh" --help) 2>&1) || rc=$?
   eq "$rc" 1 "install.sh must refuse to run without scripts/lib/quadlet-lib.sh"
   hasnt "$out" "No such file or directory" "the bare ENOENT must be gone"
-  has "$out" "not a complete checkout of WOOWTECH/apporo_cf_tunnel_web" "the diagnosis"
+  has "$out" "not a complete checkout of WOOWTECH/Apporo_podman_cf_tunnel_webgui" "the diagnosis"
 }
 
 # A hand-copied deployment tree that does carry a lib copy: the vendored lineage check refuses
@@ -101,7 +101,7 @@ t_install_from_a_deployed_tree() {
   out=$( (bash "$tree/scripts/install.sh" --help) 2>&1) || rc=$?
   eq "$rc" 1 "install.sh must refuse a tree that carries a .deployed-commit stamp"
   has "$out" "pre-Quadlet deployment tree" "the diagnosis"
-  has "$out" "WOOWTECH/apporo_cf_tunnel_web" "the repo to clone instead"
+  has "$out" "WOOWTECH/Apporo_podman_cf_tunnel_webgui" "the repo to clone instead"
 }
 
 case_ staged-unit-hardcodes-loopback t_staged_unit_hardcodes_loopback

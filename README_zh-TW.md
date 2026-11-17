@@ -19,7 +19,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/platform-www.apporo.ai-8B6B24" alt="Apporo 平台">
-  <img src="https://img.shields.io/badge/fork%20of-Woow__cloudflare__tunnel__webgui%201.2.1-8B6B24" alt="分支自 Woow_cloudflare_tunnel_webgui 1.2.1">
+  <img src="https://img.shields.io/badge/fork%20of-Woow__cloudflare__tunnel__webgui%201.2.1-8B6B24" alt="分支自 Woow_podman_cf_tunnel_webgui 1.2.1">
   <img src="https://img.shields.io/badge/Podman-4.9%2B%20(Quadlet)-892CA0?logo=podman&logoColor=white" alt="Podman">
   <img src="https://img.shields.io/badge/systemd-user%20units-informational" alt="systemd">
   <img src="https://img.shields.io/badge/Python-3.12-blue?logo=python&logoColor=white" alt="Python">
@@ -34,7 +34,7 @@
 ## 概述
 
 Apporo CF Tunnel Web 是
-[WOOWTECH/Woow_cloudflare_tunnel_webgui](https://github.com/WOOWTECH/Woow_cloudflare_tunnel_webgui)
+[WOOWTECH/Woow_podman_cf_tunnel_webgui](https://github.com/WOOWTECH/Woow_podman_cf_tunnel_webgui)
 的 Apporo 版，從上游 1.2.1 分支而來。上游能做的它都能做，差別在平台連結連到哪裡：
 **Apporo Link** 頁面會把這台主機連到 Apporo 平台（[www.apporo.ai](https://www.apporo.ai)）上的
 **Security Access**（安全存取服務），而不是 WOOW PaaS。
@@ -107,7 +107,7 @@ graph LR
 ## 安裝
 
 ```bash
-git clone https://github.com/WOOWTECH/apporo_cf_tunnel_web.git
+git clone https://github.com/WOOWTECH/Apporo_podman_cf_tunnel_webgui.git
 cd apporo_cf_tunnel_web
 
 scripts/install.sh          # 第一次執行：建立 ~/.config/apporo-cf-tunnel/apporo-cf-tunnel.env 後停下
@@ -424,8 +424,8 @@ WOOW 的介面才能在同一個瀏覽器裡並用。
 
 ## 支援
 
-- 問題回報：[GitHub Issues](https://github.com/WOOWTECH/apporo_cf_tunnel_web/issues)
-- 上游專案：[WOOWTECH/Woow_cloudflare_tunnel_webgui](https://github.com/WOOWTECH/Woow_cloudflare_tunnel_webgui)
+- 問題回報：[GitHub Issues](https://github.com/WOOWTECH/Apporo_podman_cf_tunnel_webgui/issues)
+- 上游專案：[WOOWTECH/Woow_podman_cf_tunnel_webgui](https://github.com/WOOWTECH/Woow_podman_cf_tunnel_webgui)
 - 變更紀錄：[CHANGELOG.md](CHANGELOG.md)
 
 ## 授權
@@ -435,5 +435,5 @@ MIT。Copyright (c) 2026 WOOWTECH（上游）與 (c) 2026 Apporo（分支修改�
 ---
 
 <p align="center">
-  Apporo CF Tunnel Web 建立在 <a href="https://github.com/WOOWTECH">WOOWTECH</a> 的 <a href="https://github.com/WOOWTECH/Woow_cloudflare_tunnel_webgui">Woow_cloudflare_tunnel_webgui</a> 之上，以 Vue 3 + FastAPI + Podman Quadlet 打造
+  Apporo CF Tunnel Web 建立在 <a href="https://github.com/WOOWTECH">WOOWTECH</a> 的 <a href="https://github.com/WOOWTECH/Woow_podman_cf_tunnel_webgui">Woow_podman_cf_tunnel_webgui</a> 之上，以 Vue 3 + FastAPI + Podman Quadlet 打造
 </p>

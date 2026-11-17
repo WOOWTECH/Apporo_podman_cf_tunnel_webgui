@@ -19,7 +19,7 @@
 
 [Unit]
 Description=Apporo CF Tunnel Web: GUI and cloudflared connector (apporo-cf-tunnel)
-Documentation=https://github.com/WOOWTECH/apporo_cf_tunnel_web
+Documentation=https://github.com/WOOWTECH/Apporo_podman_cf_tunnel_webgui
 # Never give up restarting: this unit may be the only remote route to the host.
 StartLimitIntervalSec=0
 
